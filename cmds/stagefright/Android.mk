@@ -9,7 +9,13 @@ LOCAL_SRC_FILES:=       \
 
 LOCAL_SHARED_LIBRARIES := \
 	libstagefright libmedia libutils libbinder libstagefright_foundation \
-        libjpeg libgui libcutils liblog
+        libgui libcutils liblog
+
+ifeq ($(USE_GMS_LIBS),true)
+	LOCAL_SHARED_LIBRARIES += libjpeg_old
+else
+	LOCAL_SHARED_LIBRARIES += libjpeg
+endif
 
 LOCAL_C_INCLUDES:= \
 	frameworks/av/media/libstagefright \

@@ -48,8 +48,13 @@ LOCAL_SHARED_LIBRARIES:= \
     libgui \
     libhardware \
     libsync \
-    libcamera_metadata \
-    libjpeg
+    libcamera_metadata
+
+ifeq ($(USE_GMS_LIBS),true)
+	LOCAL_SHARED_LIBRARIES += libjpeg_old
+else
+	LOCAL_SHARED_LIBRARIES += libjpeg
+endif
 
 LOCAL_C_INCLUDES += \
     system/media/camera/include \
