@@ -23,6 +23,9 @@
 ----------------------------------------------------------------------------*/
 #include "mp4dec_lib.h"
 
+#ifdef M4VH263DEC_MSA
+#include "prototypes_msa.h"
+#endif
 /*----------------------------------------------------------------------------
 ; MACROS
 ; Define module specific macros here
@@ -71,12 +74,19 @@ extern "C"
                             } \
                             }
 
-
+#ifdef M4VH263DEC_MSA
+    static int (*const GetPredAdvBTable[2][2])(uint8*, uint8*, int, int) =
+    {
+        {&m4v_h263_copy_msa, &m4v_h263_horiz_filter_msa},
+        {&m4v_h263_vert_filter_msa, &m4v_h263_hv_filter_msa}
+    };
+#else
     static int (*const GetPredAdvBTable[2][2])(uint8*, uint8*, int, int) =
     {
         {&GetPredAdvancedBy0x0, &GetPredAdvancedBy0x1},
         {&GetPredAdvancedBy1x0, &GetPredAdvancedBy1x1}
     };
+#endif
 
     /*----------------------------------------------------------------------------
     ; SIMPLE TYPEDEF'S

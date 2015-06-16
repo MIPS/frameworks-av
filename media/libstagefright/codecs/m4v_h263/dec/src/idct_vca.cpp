@@ -37,6 +37,7 @@ void idctcol0(int16 *)
     return ;
 }
 
+#ifndef M4VH263DEC_MSA
 void idctrow1(int16 *blk, uint8 *pred, uint8 *dst, int width)
 {
     /* shortcut */
@@ -86,6 +87,7 @@ void idctrow1(int16 *blk, uint8 *pred, uint8 *dst, int width)
     }
     return;
 }
+#endif
 
 void idctcol1(int16 *blk)
 { /* shortcut */
@@ -94,6 +96,7 @@ void idctcol1(int16 *blk)
     return;
 }
 
+#ifndef M4VH263DEC_MSA
 void idctrow2(int16 *blk, uint8 *pred, uint8 *dst, int width)
 {
     int32 x0, x1, x2, x4, x5;
@@ -154,6 +157,7 @@ void idctrow2(int16 *blk, uint8 *pred, uint8 *dst, int width)
     }
     return ;
 }
+#endif
 
 void idctcol2(int16 *blk)
 {
@@ -182,6 +186,7 @@ void idctcol2(int16 *blk)
     return ;
 }
 
+#ifndef M4VH263DEC_MSA
 void idctrow3(int16 *blk, uint8 *pred, uint8 *dst, int width)
 {
     int32 x0, x1, x2, x3, x4, x5, x6, x7, x8;
@@ -253,6 +258,7 @@ void idctrow3(int16 *blk, uint8 *pred, uint8 *dst, int width)
 
     return ;
 }
+#endif
 
 void idctcol3(int16 *blk)
 {
@@ -290,7 +296,7 @@ void idctcol3(int16 *blk)
     return;
 }
 
-
+#ifndef M4VH263DEC_MSA
 void idctrow4(int16 *blk, uint8 *pred, uint8 *dst, int width)
 {
     int32 x0, x1, x2, x3, x4, x5, x6, x7, x8;
@@ -367,6 +373,7 @@ void idctrow4(int16 *blk, uint8 *pred, uint8 *dst, int width)
     }
     return ;
 }
+#endif
 
 void idctcol4(int16 *blk)
 {
@@ -416,6 +423,7 @@ void idctrow0_intra(int16 *, PIXEL *, int)
     return ;
 }
 
+#ifndef M4VH263DEC_MSA
 void idctrow1_intra(int16 *blk, PIXEL *comp, int width)
 {
     /* shortcut */
@@ -655,6 +663,7 @@ void idctrow4_intra(int16 *blk, PIXEL *comp, int width)
 
     return ;
 }
+#endif
 
 #endif
 

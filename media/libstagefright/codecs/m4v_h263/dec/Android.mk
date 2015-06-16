@@ -36,6 +36,18 @@ LOCAL_SRC_FILES := \
  	src/zigzag_tab.cpp
 
 
+ifeq ($(TARGET_ARCH),$(filter $(TARGET_ARCH),mips32 mips64))
+    ifeq ($(ARCH_MIPS_HAVE_MSA),true)
+        LOCAL_SRC_FILES  += src/mips/msa/adaptive_smooth_msa.cpp \
+            src/mips/msa/chv_filter_msa.cpp \
+            src/mips/msa/chvr_filter_msa.cpp \
+            src/mips/msa/find_min_max_msa.cpp \
+            src/mips/msa/get_pred_adv_b_add_msa.cpp \
+            src/mips/msa/idct_msa.cpp \
+            src/mips/msa/post_filter_msa.cpp
+    endif
+endif
+
 LOCAL_MODULE := libstagefright_m4vh263dec
 
 LOCAL_C_INCLUDES := \
@@ -43,6 +55,12 @@ LOCAL_C_INCLUDES := \
 	$(LOCAL_PATH)/include \
 	$(TOP)/frameworks/av/media/libstagefright/include \
 	$(TOP)/frameworks/native/include/media/openmax
+
+ifeq ($(TARGET_ARCH),$(filter $(TARGET_ARCH),mips32 mips64))
+    ifeq ($(ARCH_MIPS_HAVE_MSA),true)
+        LOCAL_C_INCLUDES += $(LOCAL_PATH)/include/mips/msa
+    endif
+endif
 
 LOCAL_CFLAGS := -DOSCL_EXPORT_REF= -DOSCL_IMPORT_REF=
 
@@ -63,7 +81,20 @@ LOCAL_C_INCLUDES := \
         frameworks/av/media/libstagefright/include \
         frameworks/native/include/media/openmax
 
+ifeq ($(TARGET_ARCH),$(filter $(TARGET_ARCH),mips32 mips64))
+    ifeq ($(ARCH_MIPS_HAVE_MSA),true)
+        LOCAL_C_INCLUDES += $(LOCAL_PATH)/include/mips/msa
+    endif
+endif
+
 LOCAL_CFLAGS := -DOSCL_EXPORT_REF= -DOSCL_IMPORT_REF=
+
+ifeq ($(TARGET_ARCH),$(filter $(TARGET_ARCH),mips32 mips64))
+    ifeq ($(ARCH_MIPS_HAVE_MSA),true)
+        LOCAL_CFLAGS += -DM4VH263DEC_MSA
+        LOCAL_CFLAGS += -mmsa -msched-weight -funroll-loops
+    endif
+endif
 
 LOCAL_STATIC_LIBRARIES := \
         libstagefright_m4vh263dec

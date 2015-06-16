@@ -118,8 +118,9 @@
 /*----------------------------------------------------------------------------
 ; Function Code FOR idct
 ----------------------------------------------------------------------------*/
+#ifndef M4VH263DEC_MSA
 void idct_intra(
-    int *blk, uint8 *comp, int width
+    int16 *blk, uint8 *comp, int width
 )
 {
     /*----------------------------------------------------------------------------
@@ -342,7 +343,7 @@ void idct_intra(
 }
 
 void idct(
-    int *blk, uint8 *pred, uint8 *dst, int width)
+    int16 *blk, uint8 *pred, uint8 *dst, int width)
 {
     /*----------------------------------------------------------------------------
     ; Define all local variables
@@ -535,28 +536,28 @@ void idct(
             blk[7+(i<<3)] = (r7 - r1) >> 14;
         }
         /*  add with prediction ,  08/03/05 */
-        res = (*pred++ + block[0+(i<<3)]);
+        res = (*pred++ + blk[0+(i<<3)]);
         CLIP_RESULT(res);
         *dst++ = res;
-        res = (*pred++ + block[1+(i<<3)]);
+        res = (*pred++ + blk[1+(i<<3)]);
         CLIP_RESULT(res);
         *dst++ = res;
-        res = (*pred++ + block[2+(i<<3)]);
+        res = (*pred++ + blk[2+(i<<3)]);
         CLIP_RESULT(res);
         *dst++ = res;
-        res = (*pred++ + block[3+(i<<3)]);
+        res = (*pred++ + blk[3+(i<<3)]);
         CLIP_RESULT(res);
         *dst++ = res;
-        res = (*pred++ + block[4+(i<<3)]);
+        res = (*pred++ + blk[4+(i<<3)]);
         CLIP_RESULT(res);
         *dst++ = res;
-        res = (*pred++ + block[5+(i<<3)]);
+        res = (*pred++ + blk[5+(i<<3)]);
         CLIP_RESULT(res);
         *dst++ = res;
-        res = (*pred++ + block[6+(i<<3)]);
+        res = (*pred++ + blk[6+(i<<3)]);
         CLIP_RESULT(res);
         *dst++ = res;
-        res = (*pred++ + block[7+(i<<3)]);
+        res = (*pred++ + blk[7+(i<<3)]);
         CLIP_RESULT(res);
         *dst++ = res;
 
@@ -571,6 +572,7 @@ void idct(
     ----------------------------------------------------------------------------*/
     return;
 }
+#endif
 
 #endif
 /*----------------------------------------------------------------------------

@@ -103,6 +103,10 @@
 #include "idct.h"
 #include "motion_comp.h"
 
+#ifdef M4VH263DEC_MSA
+#include "prototypes_msa.h"
+#endif
+
 #define OSCL_DISABLE_WARNING_CONV_POSSIBLE_LOSS_OF_DATA
 /*----------------------------------------------------------------------------
 ; MACROS
@@ -150,7 +154,21 @@ static void (*const idctcolVCA[10][4])(int16*) =
     {&idctcol4, &idctcol3, &idctcol2, &idctcol1}
 };
 
-
+#ifdef M4VH263DEC_MSA
+static void (*const idctrowVCA[10])(int16*, uint8*, uint8*, int) =
+{
+    &m4v_h263_idct_addblk_4rows_msa,
+    &m4v_h263_idct_addblk_4rows_msa,
+    &m4v_h263_idct_addblk_4rows_msa,
+    &m4v_h263_idct_addblk_4rows_msa,
+    &m4v_h263_idct_addblk_4rows_msa,
+    &m4v_h263_idct_addblk_4rows_msa,
+    &m4v_h263_idct_addblk_4rows_msa,
+    &m4v_h263_idct_addblk_4rows_msa,
+    &m4v_h263_idct_addblk_4rows_msa,
+    &m4v_h263_idct_addblk_4rows_msa
+};
+#else
 static void (*const idctrowVCA[10])(int16*, uint8*, uint8*, int) =
 {
     &idctrow1,
@@ -164,7 +182,7 @@ static void (*const idctrowVCA[10])(int16*, uint8*, uint8*, int) =
     &idctrow4,
     &idctrow4
 };
-
+#endif
 
 static void (*const idctcolVCA2[16])(int16*) =
 {
@@ -174,12 +192,41 @@ static void (*const idctcolVCA2[16])(int16*) =
     &idctcol2, &idctcol4, &idctcol3, &idctcol4
 };
 
+#ifdef M4VH263DEC_MSA
+static void (*const idctrowVCA2[8])(int16*, uint8*, uint8*, int) =
+{
+    &m4v_h263_idct_addblk_4rows_msa,
+    &m4v_h263_idct_addblk_4rows_msa,
+    &m4v_h263_idct_addblk_4rows_msa,
+    &m4v_h263_idct_addblk_4rows_msa,
+    &m4v_h263_idct_addblk_4rows_msa,
+    &m4v_h263_idct_addblk_4rows_msa,
+    &m4v_h263_idct_addblk_4rows_msa,
+    &m4v_h263_idct_addblk_4rows_msa
+};
+#else
 static void (*const idctrowVCA2[8])(int16*, uint8*, uint8*, int) =
 {
     &idctrow1, &idctrow4, &idctrow3, &idctrow4,
     &idctrow2, &idctrow4, &idctrow3, &idctrow4
 };
+#endif
 
+#ifdef M4VH263DEC_MSA
+static void (*const idctrowVCA_intra[10])(int16*, PIXEL *, int) =
+{
+    &m4v_h263_idct_4rows_msa,
+    &m4v_h263_idct_4rows_msa,
+    &m4v_h263_idct_4rows_msa,
+    &m4v_h263_idct_4rows_msa,
+    &m4v_h263_idct_4rows_msa,
+    &m4v_h263_idct_4rows_msa,
+    &m4v_h263_idct_4rows_msa,
+    &m4v_h263_idct_4rows_msa,
+    &m4v_h263_idct_4rows_msa,
+    &m4v_h263_idct_4rows_msa
+};
+#else
 static void (*const idctrowVCA_intra[10])(int16*, PIXEL *, int) =
 {
     &idctrow1_intra,
@@ -193,12 +240,27 @@ static void (*const idctrowVCA_intra[10])(int16*, PIXEL *, int) =
     &idctrow4_intra,
     &idctrow4_intra
 };
+#endif
 
+#ifdef M4VH263DEC_MSA
+static void (*const idctrowVCA2_intra[8])(int16*, PIXEL *, int) =
+{
+    &m4v_h263_idct_4rows_msa,
+    &m4v_h263_idct_4rows_msa,
+    &m4v_h263_idct_4rows_msa,
+    &m4v_h263_idct_4rows_msa,
+    &m4v_h263_idct_4rows_msa,
+    &m4v_h263_idct_4rows_msa,
+    &m4v_h263_idct_4rows_msa,
+    &m4v_h263_idct_4rows_msa
+};
+#else
 static void (*const idctrowVCA2_intra[8])(int16*, PIXEL *, int) =
 {
     &idctrow1_intra, &idctrow4_intra, &idctrow3_intra, &idctrow4_intra,
     &idctrow2_intra, &idctrow4_intra, &idctrow3_intra, &idctrow4_intra
 };
+#endif
 #endif
 
 /*----------------------------------------------------------------------------
@@ -304,8 +366,12 @@ void BlockIDCT_intra(
         }
     }
 #else
-    void idct_intra(int *block, uint8 *comp, int width);
+#ifdef M4VH263DEC_MSA
+    m4v_h263_idct_msa(coeff_in, c_comp, width);
+#else
+    void idct_intra(short *block, uint8 *comp, int width);
     idct_intra(coeff_in, c_comp, width);
+#endif
 #endif
 #else
     void idctref_intra(int *block, uint8 *comp, int width);
@@ -402,9 +468,12 @@ void BlockIDCT(
         return ;
     }
 #else // FAST_IDCT
-    void idct(int *block, uint8 *pred, uint8 *dst, int width);
+#ifdef M4VH263DEC_MSA
+    m4v_h263_idct_addblk_msa(coeff_in, pred, dst, width);
+#else
+    void idct(short *block, uint8 *pred, uint8 *dst, int width);
     idct(coeff_in, pred, dst, width);
-    return;
+#endif
 #endif // FAST_IDCT
 #else // INTEGER_IDCT
     void idctref(int *block, uint8 *pred, uint8 *dst, int width);

@@ -24,6 +24,10 @@
 const static int STRENGTH_tab[] = {0, 1, 1, 2, 2, 3, 3, 4, 4, 4, 5, 5, 6, 6, 7, 7, 7, 8, 8, 8, 9, 9, 9, 10, 10, 10, 11, 11, 11, 12, 12, 12};
 #endif
 
+#ifdef M4VH263DEC_MSA
+#include "prototypes_msa.h"
+#endif
+
 #ifdef PV_POSTPROC_ON
 /*----------------------------------------------------------------------------
 ; FUNCTION CODE
@@ -80,13 +84,24 @@ void PostFilter(
         {
             if (softDeblocking)
             {
+
+#ifdef M4VH263DEC_MSA
+                m4v_h263_CombinedHorzVertFilter_msa(output, width, height,
+                                                    QP_store, 0, pp_mod);
+#else
                 CombinedHorzVertFilter(output, width, height,
                                        QP_store, 0, pp_mod);
+#endif
             }
             else
             {
+#ifdef M4VH263DEC_MSA
+                m4v_h263_CombinedHorzVertFilter_NoSoftDeblocking_msa(output, width, height,
+                                                                     QP_store, 0, pp_mod);
+#else
                 CombinedHorzVertFilter_NoSoftDeblocking(output, width, height,
                                                         QP_store, 0, pp_mod);
+#endif
             }
         }
         if (filter_type & PV_DERING)
@@ -112,13 +127,26 @@ void PostFilter(
         {
             if (softDeblocking)
             {
+
+#ifdef M4VH263DEC_MSA
+                m4v_h263_CombinedHorzVertFilter_msa(output, (int)(width >> 1), (int)(height >> 1),
+                                                    QP_store, (int) 1, pp_mod);
+#else
                 CombinedHorzVertFilter(output, (int)(width >> 1),
                                        (int)(height >> 1), QP_store, (int) 1, pp_mod);
+#endif
+
             }
             else
             {
+#ifdef M4VH263DEC_MSA
+                m4v_h263_CombinedHorzVertFilter_NoSoftDeblocking_msa(output, (int)(width >> 1),
+                                                                     (int)(height >> 1),
+                                                                     QP_store, (int) 1, pp_mod);
+#else
                 CombinedHorzVertFilter_NoSoftDeblocking(output, (int)(width >> 1),
                                                         (int)(height >> 1), QP_store, (int) 1, pp_mod);
+#endif
             }
         }
         if (filter_type & PV_DERING)
@@ -142,13 +170,24 @@ void PostFilter(
         {
             if (softDeblocking)
             {
+#ifdef M4VH263DEC_MSA
+                m4v_h263_CombinedHorzVertFilter_msa(output, (int)(width >> 1), (int)(height >> 1),
+                                                    QP_store, (int) 1, pp_mod);
+#else
                 CombinedHorzVertFilter(output, (int)(width >> 1),
                                        (int)(height >> 1), QP_store, (int) 1, pp_mod);
+#endif
             }
             else
             {
+#ifdef M4VH263DEC_MSA
+                m4v_h263_CombinedHorzVertFilter_NoSoftDeblocking_msa(output, (int)(width >> 1),
+                                                                     (int)(height >> 1),
+                                                                     QP_store, (int) 1, pp_mod);
+#else
                 CombinedHorzVertFilter_NoSoftDeblocking(output, (int)(width >> 1),
                                                         (int)(height >> 1), QP_store, (int) 1, pp_mod);
+#endif
             }
         }
         if (filter_type & PV_DERING)

@@ -31,6 +31,18 @@ void Deringing_Luma(
     /*----------------------------------------------------------------------------
     ; Define all local variables
     ----------------------------------------------------------------------------*/
+#ifdef M4VH263DEC_MSA
+    int thres[4], range[4], max_range_blk, max_thres_blk;
+    int MB_V, MB_H, BLK_V, BLK_H;
+    int v_blk, h_blk;
+    int max_diff;
+    int max_blk, min_blk;
+    int v0, h0;
+    uint8 *ptr;
+    int thr, blks;
+    int mb_indx, blk_indx;
+    int ai32MaxBlk[2], ai32MinBlk[2];
+#else
     int thres[4], range[4], max_range_blk, max_thres_blk;
     int MB_V, MB_H, BLK_V, BLK_H;
     int v_blk, h_blk;
@@ -40,11 +52,14 @@ void Deringing_Luma(
     uint8 *ptr;
     int thr, blks, incr;
     int mb_indx, blk_indx;
+#endif
 
     /*----------------------------------------------------------------------------
     ; Function body here
     ----------------------------------------------------------------------------*/
+#ifndef M4VH263DEC_MSA
     incr = width - BLKSIZE;
+#endif
 
     /* Dering the first line of macro blocks */
     for (MB_H = 0; MB_H < width; MB_H += MBSIZE)
@@ -57,6 +72,30 @@ void Deringing_Luma(
 
         for (BLK_V = 0; BLK_V < MBSIZE; BLK_V += BLKSIZE)
         {
+#ifdef M4VH263DEC_MSA
+            ptr = &Rec_Y[(int32)(BLK_V) * width + MB_H];
+            FindMaxMin2BlockMSA(ptr, &ai32MinBlk[0], &ai32MaxBlk[0], width);
+
+            thres[blks] = (ai32MaxBlk[0] + ai32MinBlk[0] + 1) >> 1;
+            range[blks] = ai32MaxBlk[0] - ai32MinBlk[0];
+
+            thres[blks + 1] = (ai32MaxBlk[1] + ai32MinBlk[1] + 1) >> 1;
+            range[blks + 1] = ai32MaxBlk[1] - ai32MinBlk[1];
+
+            if (range[blks] >= max_range_blk)
+            {
+                max_range_blk = range[blks];
+                max_thres_blk = thres[blks];
+            }
+
+            if (range[blks + 1] >= max_range_blk)
+            {
+                max_range_blk = range[blks + 1];
+                max_thres_blk = thres[blks + 1];
+            }
+
+            blks += 2;
+#else
             for (BLK_H = 0; BLK_H < MBSIZE; BLK_H += BLKSIZE)
             {
                 ptr = &Rec_Y[(int32)(BLK_V) * width + MB_H + BLK_H];
@@ -72,6 +111,7 @@ void Deringing_Luma(
                 }
                 blks++;
             }
+#endif
         }
 
         blks = 0;
@@ -93,8 +133,23 @@ void Deringing_Luma(
                     /* adaptive smoothing */
                     thr = thres[blks];
 
+#ifdef M4VH263DEC_MSA
+                    if (6 == ((h_blk + BLKSIZE - 1) - h0))
+                    {
+                        DeringAdaptiveSmooth6ColsMSA(Rec_Y + ((v0 + 1) * width + h0),
+                                                     (v_blk + BLKSIZE - v0 - 2),
+                                                     thr, width, max_diff);
+                    }
+                    else
+                    {
+                        DeringAdaptiveSmooth8ColsMSA(Rec_Y + ((v0 + 1) * width + h0),
+                                                     (v_blk + BLKSIZE - v0 - 2),
+                                                     thr, width, max_diff);
+                    }
+#else
                     AdaptiveSmooth_NoMMX(Rec_Y, v0, h0, v_blk, h_blk,
                                          thr, width, max_diff);
+#endif
                 }
                 blks++;
             } /* block level (Luminance) */
@@ -112,6 +167,30 @@ void Deringing_Luma(
         blks = 0;
         for (BLK_V = 0; BLK_V < MBSIZE; BLK_V += BLKSIZE)
         {
+#ifdef M4VH263DEC_MSA
+            ptr = &Rec_Y[(int32)(MB_V + BLK_V) * width];
+            FindMaxMin2BlockMSA(ptr, &ai32MinBlk[0], &ai32MaxBlk[0], width);
+
+            thres[blks] = (ai32MaxBlk[0] + ai32MinBlk[0] + 1) >> 1;
+            range[blks] = ai32MaxBlk[0] - ai32MinBlk[0];
+
+            thres[blks + 1] = (ai32MaxBlk[1] + ai32MinBlk[1] + 1) >> 1;
+            range[blks + 1] = ai32MaxBlk[1] - ai32MinBlk[1];
+
+            if (range[blks] >= max_range_blk)
+            {
+                max_range_blk = range[blks];
+                max_thres_blk = thres[blks];
+            }
+
+            if (range[blks+1] >= max_range_blk)
+            {
+                max_range_blk = range[blks+1];
+                max_thres_blk = thres[blks+1];
+            }
+
+            blks += 2;
+#else
             for (BLK_H = 0; BLK_H < MBSIZE; BLK_H += BLKSIZE)
             {
                 ptr = &Rec_Y[(int32)(MB_V + BLK_V) * width + BLK_H];
@@ -126,6 +205,7 @@ void Deringing_Luma(
                 }
                 blks++;
             }
+#endif
         }
 
         blks = 0;
@@ -147,8 +227,23 @@ void Deringing_Luma(
                     /* adaptive smoothing */
                     thr = thres[blks];
 
+#ifdef M4VH263DEC_MSA
+                    if (6 == ((h_blk + BLKSIZE - 1) - h0))
+                    {
+                        DeringAdaptiveSmooth6ColsMSA(Rec_Y + ((v0 + 1) * width + h0),
+                                                     (v_blk + BLKSIZE - v0 - 2),
+                                                     thr, width, max_diff);
+                    }
+                    else
+                    {
+                        DeringAdaptiveSmooth8ColsMSA(Rec_Y + ((v0 + 1) * width + h0),
+                                                     (v_blk + BLKSIZE - v0 - 2),
+                                                     thr, width, max_diff);
+                    }
+#else
                     AdaptiveSmooth_NoMMX(Rec_Y, v0, h0, v_blk, h_blk,
                                          thr, width, max_diff);
+#endif
                 }
                 blks++;
             }
@@ -173,7 +268,11 @@ void Deringing_Luma(
                     if ((pp_mod[blk_indx]&0x4) != 0)
                     {
                         ptr = &Rec_Y[(int32)(MB_V + BLK_V) * width + MB_H + BLK_H];
+#ifdef M4VH263DEC_MSA
+                        FindMaxMin1BlockMSA(ptr, &min_blk, &max_blk, width);
+#else
                         FindMaxMin(ptr, &min_blk, &max_blk, incr);
+#endif
                         thres[blks] = (max_blk + min_blk + 1) >> 1;
                         range[blks] = max_blk - min_blk;
 
@@ -209,8 +308,23 @@ void Deringing_Luma(
                             /* adaptive smoothing */
                             thr = thres[blks];
 #ifdef NoMMX
+#ifdef M4VH263DEC_MSA
+                            if (6 == ((h_blk + BLKSIZE - 1) - h0))
+                            {
+                                DeringAdaptiveSmooth6ColsMSA(Rec_Y + ((v0 + 1) * width + h0),
+                                                             (v_blk + BLKSIZE - v0 - 2),
+                                                             thr, width, max_diff);
+                            }
+                            else
+                            {
+                                DeringAdaptiveSmooth8ColsMSA(Rec_Y + ((v0 + 1) * width + h0),
+                                                             (v_blk + BLKSIZE - v0 - 2),
+                                                             thr, width, max_diff);
+                            }
+#else
                             AdaptiveSmooth_NoMMX(Rec_Y, v0, h0, v_blk, h_blk,
                                                  thr, width, max_diff);
+#endif
 #else
                             DeringAdaptiveSmoothMMX(&Rec_Y[v0*width+h0],
                                                     width, thr, max_diff);

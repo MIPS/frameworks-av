@@ -23,6 +23,10 @@
 ----------------------------------------------------------------------------*/
 #include    "mp4dec_lib.h"
 
+#ifdef M4VH263DEC_MSA
+#include "prototypes_msa.h"
+#endif
+
 /*----------------------------------------------------------------------------
 ; MACROS
 ; Define module specific macros here

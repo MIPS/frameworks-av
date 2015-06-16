@@ -32,6 +32,14 @@ void Deringing_Chroma(
     /*----------------------------------------------------------------------------
     ; Define all local variables
     ----------------------------------------------------------------------------*/
+#ifdef M4VH263DEC_MSA
+    int thres;
+    int v_blk, h_blk;
+    int max_diff;
+    int max_blk, min_blk;
+    int v0, h0;
+    uint8 *ptr;
+#else
     int thres;
     int v_blk, h_blk;
     int max_diff;
@@ -45,6 +53,7 @@ void Deringing_Chroma(
     int *ptr2, *ptr3;
     uint8 pelu, pelc, pell;
     incr = width - BLKSIZE;
+#endif
 
     /*----------------------------------------------------------------------------
     ; Function body here
@@ -55,15 +64,28 @@ void Deringing_Chroma(
     {
         max_diff = (QP_store[h_blk>>3] >> 2) + 4;
         ptr = &Rec_C[h_blk];
+#ifdef M4VH263DEC_MSA
+        FindMaxMin1BlockMSA(ptr, &min_blk, &max_blk, (width + BLKSIZE));
+#else
         max_blk = min_blk = *ptr;
         FindMaxMin(ptr, &min_blk, &max_blk, width);
+#endif
         h0 = ((h_blk - 1) >= 1) ? (h_blk - 1) : 1;
 
         if (max_blk - min_blk >= 4)
         {
             thres = (max_blk + min_blk + 1) >> 1;
 
-
+#ifdef M4VH263DEC_MSA
+            if (6 == (h_blk + BLKSIZE - 1 - h0))
+            {
+                PostProcCr6ColsMSA(Rec_C + (1 * width + h0 - 1), 6, thres, width, max_diff);
+            }
+            else
+            {
+                PostProcCr8ColsMSA(Rec_C + (1 * width + h0 - 1), 6, thres, width, max_diff);
+            }
+#else
             for (v_pel = 1; v_pel < BLKSIZE - 1; v_pel++)
             {
                 addr_v = (int32)v_pel * width;
@@ -114,6 +136,7 @@ void Deringing_Chroma(
                     ptr3++;
                 }
             }
+#endif
         }
     }
 
@@ -123,13 +146,20 @@ void Deringing_Chroma(
         /* Do the first block (pixels=7 => No MMX) */
         max_diff = (QP_store[((((int32)v_blk*width)>>3))>>3] >> 2) + 4;
         ptr = &Rec_C[(int32)v_blk * width];
+#ifdef M4VH263DEC_MSA
+        FindMaxMin1BlockMSA(ptr, &min_blk, &max_blk, width);
+#else
         max_blk = min_blk = *ptr;
         FindMaxMin(ptr, &min_blk, &max_blk, incr);
+#endif
 
         if (max_blk - min_blk >= 4)
         {
             thres = (max_blk + min_blk + 1) >> 1;
 
+#ifdef M4VH263DEC_MSA
+            PostProcCr6ColsMSA(Rec_C + (v0 * width), (v_blk + BLKSIZE - 1 - v0), thres, width, max_diff);
+#else
             for (v_pel = v0; v_pel < v_blk + BLKSIZE - 1; v_pel++)
             {
                 addr_v = v_pel * width;
@@ -180,6 +210,7 @@ void Deringing_Chroma(
                     ptr3++;
                 }
             }
+#endif
         }
 
 
@@ -190,15 +221,32 @@ void Deringing_Chroma(
             {
                 max_diff = (QP_store[((((int32)v_blk*width)>>3)+h_blk)>>3] >> 2) + 4;
                 ptr = &Rec_C[(int32)v_blk * width + h_blk];
+#ifdef M4VH263DEC_MSA
+                FindMaxMin1BlockMSA(ptr, &min_blk, &max_blk, width);
+#else
                 max_blk = min_blk = *ptr;
                 FindMaxMin(ptr, &min_blk, &max_blk, incr);
+#endif
                 h0 = h_blk - 1;
 
                 if (max_blk - min_blk >= 4)
                 {
                     thres = (max_blk + min_blk + 1) >> 1;
 #ifdef NoMMX
+#ifdef M4VH263DEC_MSA
+                    if (6 == ((h_blk + BLKSIZE - 1) - h0))
+                    {
+                        DeringAdaptiveSmooth6ColsMSA(Rec_C + ((v0 + 1) * width + h0), (v_blk + BLKSIZE - v0 - 2),
+                                                     thres, width, max_diff);
+                    }
+                    else
+                    {
+                        DeringAdaptiveSmooth8ColsMSA(Rec_C + ((v0 + 1) * width + h0), (v_blk + BLKSIZE - v0 - 2),
+                                                     thres, width, max_diff);
+                    }
+#else
                     AdaptiveSmooth_NoMMX(Rec_C, v0, h0, v_blk, h_blk, thres, width, max_diff);
+#endif
 #else
                     DeringAdaptiveSmoothMMX(&Rec_C[(int32)v0*width+h0], width, thres, max_diff);
 #endif

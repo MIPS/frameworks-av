@@ -32,6 +32,13 @@ void CombinedHorzVertRingFilter(
     /*----------------------------------------------------------------------------
     ; Define all local variables
     ----------------------------------------------------------------------------*/
+#ifdef M4VH263DEC_MSA
+    uint8 *ptr;
+    int index;
+    int br, bc, mbr, mbc;
+    int QP = 1;
+    int pp_w, pp_h, brwidth;
+#else
     int index, counter;
     int br, bc, incr, mbr, mbc;
     int QP = 1;
@@ -41,6 +48,7 @@ void CombinedHorzVertRingFilter(
     int pp_w, pp_h, brwidth;
     int sum, delta;
     int a3_0, a3_1, a3_2, A3_0;
+#endif
     /* for Deringing Threshold approach (MPEG4)*/
     int max_diff, thres, v0, h0, min_blk, max_blk;
     int cnthflag;
@@ -52,12 +60,14 @@ void CombinedHorzVertRingFilter(
     pp_w = (width >> 3);
     pp_h = (height >> 3);
 
+#ifndef M4VH263DEC_MSA
     /* Set up various values needed for updating pointers into rec */
     w1 = width;             /* Offset to next row in pixels */
     w2 = width << 1;        /* Offset to two rows in pixels */
     w3 = w1 + w2;           /* Offset to three rows in pixels */
     w4 = w2 << 1;           /* Offset to four rows in pixels */
     incr = width - BLKSIZE; /* Offset to next row after processing block */
+#endif
 
     /* Work through the area hortizontally by two rows per step */
     for (mbr = 0; mbr < pp_h; mbr += 2)
@@ -117,6 +127,9 @@ void CombinedHorzVertRingFilter(
                             /* Set HorzHflag (bit 4) in the pp_mod location */
                             pp_mod[index-pp_w] |= 0x10; /*  4/26/00 reuse pp_mod for HorzHflag*/
 
+#ifdef M4VH263DEC_MSA
+                            HardFiltHorMSA(ptr, QP, width);
+#else
                             /* Filter across the 8 pixels of the block */
                             for (index = BLKSIZE; index > 0; index--)
                             {
@@ -166,6 +179,8 @@ void CombinedHorzVertRingFilter(
                                 /* Increment pointer to next pixel */
                                 ++ptr;
                             } /* index*/
+#endif
+
                         }
                         else
                         { /* soft filter*/
@@ -173,6 +188,9 @@ void CombinedHorzVertRingFilter(
                             /* Clear HorzHflag (bit 4) in the pp_mod location */
                             pp_mod[index-pp_w] &= 0xef; /* reset 1110,1111 */
 
+#ifdef M4VH263DEC_MSA
+                            SoftFiltHorMSA(ptr, QP, width);
+#else
                             for (index = BLKSIZE; index > 0; index--)
                             {
                                 /* Difference between the current pixel and the pixel above it */
@@ -234,6 +252,7 @@ void CombinedHorzVertRingFilter(
                                 /* Increment pointer to next pixel */
                                 ++ptr;
                             } /*index*/
+#endif
                         } /* Soft filter*/
                     }/* boundary checking*/
                 }/*bc*/
@@ -276,6 +295,9 @@ void CombinedHorzVertRingFilter(
                             /* Set VertHflag (bit 5) in the pp_mod location of previous block*/
                             pp_mod[index-1] |= 0x20; /*  4/26/00 reuse pp_mod for VertHflag*/
 
+#ifdef M4VH263DEC_MSA
+                            HardFiltVerMSA(ptr, QP, width);
+#else
                             /* Filter across the 8 pixels of the block */
                             for (index = BLKSIZE; index > 0; index--)
                             {
@@ -324,12 +346,16 @@ void CombinedHorzVertRingFilter(
                                 /* Increment pointers to next pixel row */
                                 ptr += w1;
                             } /* index*/
+#endif
                         }
                         else
                         { /* soft filter*/
 
                             /* Clear VertHflag (bit 5) in the pp_mod location */
                             pp_mod[index-1] &= 0xdf; /* reset 1101,1111 */
+#ifdef M4VH263DEC_MSA
+                            SoftFiltVerMSA(ptr, QP, width);
+#else
                             for (index = BLKSIZE; index > 0; index--)
                             {
                                 /* Difference between the current pixel and the pixel above it */
@@ -390,6 +416,7 @@ void CombinedHorzVertRingFilter(
                                 }
                                 ptr += w1;
                             } /*index*/
+#endif
                         } /* Soft filter*/
                     } /* boundary*/
                 } /*bc*/
@@ -445,7 +472,11 @@ void CombinedHorzVertRingFilter(
                                     ptr = rec + (brwidth << 6) + (bc << 3);
 
                                     /* Find minimum and maximum value of pixel block */
+#ifdef M4VH263DEC_MSA
+                                    FindMaxMin1BlockMSA(ptr, &min_blk, &max_blk, width);
+#else
                                     FindMaxMin(ptr, &min_blk, &max_blk, incr);
+#endif
 
                                     /* threshold determination */
                                     thres = (max_blk + min_blk + 1) >> 1;
@@ -464,7 +495,11 @@ void CombinedHorzVertRingFilter(
                                         h0 = (bc << 3) - 1;
 
                                         /*smooth 8x8 region*/
+#ifdef M4VH263DEC_MSA
+                                        DeringAdaptiveSmooth8ColsMSA(rec + ((v0 + 1) * width + h0), 7, thres, width, max_diff);
+#else
                                         AdaptiveSmooth_NoMMX(rec, v0, h0, v0 + 1, h0 + 1, thres, width, max_diff);
+#endif
                                     }
 #endif
                                 }/*cnthflag*/
@@ -529,7 +564,11 @@ void CombinedHorzVertRingFilter(
                                     ptr = rec + (brwidth << 6) + (bc << 3);
 
                                     /* Find minimum and maximum value of pixel block */
+#ifdef M4VH263DEC_MSA
+                                    FindMaxMin1BlockMSA(ptr, &min_blk, &max_blk, width);
+#else
                                     FindMaxMin(ptr, &min_blk, &max_blk, incr);
+#endif
 
                                     /* threshold determination */
                                     thres = (max_blk + min_blk + 1) >> 1;
@@ -543,7 +582,11 @@ void CombinedHorzVertRingFilter(
                                     if ((max_blk - min_blk) >= DERING_THR)
                                     {
                                         /* Smooth 4x4 region */
+#ifdef M4VH263DEC_MSA
+                                        DeringAdaptiveSmooth4ColsMSA(rec + ((v0 + 1) * width + h0), 3, thres, width, max_diff);
+#else
                                         AdaptiveSmooth_NoMMX(rec, v0, h0, v0 - 3, h0 - 3, thres, width, max_diff);
+#endif
                                     }
                                 }/*cnthflag*/
                             } /* br==0, bc==0*/
