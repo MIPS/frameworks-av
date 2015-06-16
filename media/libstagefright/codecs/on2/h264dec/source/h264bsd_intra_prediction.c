@@ -161,27 +161,55 @@ const u8 h264bsdClip[1280] =
 ------------------------------------------------------------------------------*/
 static void Get4x4NeighbourPels(u8 *a, u8 *l, u8 *data, u8 *above, u8 *left,
     u32 blockNum);
+#ifdef H264DEC_MSA
+extern void Intra16x16VerticalPrediction(u8 *data, u8 *above);
+extern void Intra16x16HorizontalPrediction(u8 *data, u8 *left);
+extern void Intra16x16DcPrediction(u8 *data, u8 *above, u8 *left,
+    u32 A, u32 B);
+#else
 static void Intra16x16VerticalPrediction(u8 *data, u8 *above);
 static void Intra16x16HorizontalPrediction(u8 *data, u8 *left);
 static void Intra16x16DcPrediction(u8 *data, u8 *above, u8 *left,
     u32 A, u32 B);
+#endif
 static void Intra16x16PlanePrediction(u8 *data, u8 *above, u8 *left);
+
+#ifdef H264DEC_MSA
+extern void IntraChromaDcPrediction(u8 *data, u8 *above, u8 *left,
+    u32 A, u32 B);
+extern void IntraChromaHorizontalPrediction(u8 *data, u8 *left);
+extern void IntraChromaVerticalPrediction(u8 *data, u8 *above);
+#else
 static void IntraChromaDcPrediction(u8 *data, u8 *above, u8 *left,
     u32 A, u32 B);
 static void IntraChromaHorizontalPrediction(u8 *data, u8 *left);
 static void IntraChromaVerticalPrediction(u8 *data, u8 *above);
+#endif
+
 static void IntraChromaPlanePrediction(u8 *data, u8 *above, u8 *left);
 
+#ifdef H264DEC_MSA
+extern void Intra4x4VerticalPrediction(u8 *data, u8 *above);
+extern void Intra4x4HorizontalPrediction(u8 *data, u8 *left);
+extern void Intra4x4DcPrediction(u8 *data, u8 *above, u8 *left, u32 A, u32 B);
+#else
 static void Intra4x4VerticalPrediction(u8 *data, u8 *above);
 static void Intra4x4HorizontalPrediction(u8 *data, u8 *left);
 static void Intra4x4DcPrediction(u8 *data, u8 *above, u8 *left, u32 A, u32 B);
+#endif
+
 static void Intra4x4DiagonalDownLeftPrediction(u8 *data, u8 *above);
 static void Intra4x4DiagonalDownRightPrediction(u8 *data, u8 *above, u8 *left);
 static void Intra4x4VerticalRightPrediction(u8 *data, u8 *above, u8 *left);
 static void Intra4x4HorizontalDownPrediction(u8 *data, u8 *above, u8 *left);
 static void Intra4x4VerticalLeftPrediction(u8 *data, u8 *above);
 static void Intra4x4HorizontalUpPrediction(u8 *data, u8 *left);
+
+#ifdef H264DEC_MSA
+void h264bsdAddResidual(u8 *data, i16 *residual, u32 blockNum);
+#else
 void h264bsdAddResidual(u8 *data, i32 *residual, u32 blockNum);
+#endif
 
 static void Write4x4To16x16(u8 *data, u8 *data4x4, u32 blockNum);
 #endif /* H264DEC_OMXDL */
@@ -619,7 +647,12 @@ void h264bsdGetNeighbourPels(image_t *image, u8 *above, u8 *left, u32 mbNum)
 
 ------------------------------------------------------------------------------*/
 
-u32 h264bsdIntra16x16Prediction(mbStorage_t *pMb, u8 *data, i32 residual[][16],
+u32 h264bsdIntra16x16Prediction(mbStorage_t *pMb, u8 *data,
+#ifdef H264DEC_MSA
+                                i16 residual[][16],
+#else
+                                i32 residual[][16],
+#endif
                                 u8 *above, u8 *left, u32 constrainedIntraPred)
 {
 
@@ -837,7 +870,12 @@ u32 h264bsdIntra4x4Prediction(mbStorage_t *pMb, u8 *data,
 
 ------------------------------------------------------------------------------*/
 
-u32 h264bsdIntraChromaPrediction(mbStorage_t *pMb, u8 *data, i32 residual[][16],
+u32 h264bsdIntraChromaPrediction(mbStorage_t *pMb, u8 *data,
+#ifdef H264DEC_MSA
+                                i16 residual[][16],
+#else
+                                i32 residual[][16],
+#endif
                     u8 *above, u8 *left, u32 predMode, u32 constrainedIntraPred)
 {
 
@@ -919,7 +957,11 @@ u32 h264bsdIntraChromaPrediction(mbStorage_t *pMb, u8 *data, i32 residual[][16],
 
 ------------------------------------------------------------------------------*/
 #ifndef H264DEC_OMXDL
+#ifdef H264DEC_MSA
+void h264bsdAddResidual(u8 *data, i16 *residual, u32 blockNum)
+#else
 void h264bsdAddResidual(u8 *data, i32 *residual, u32 blockNum)
+#endif
 {
 
 /* Variables */
@@ -991,7 +1033,7 @@ void h264bsdAddResidual(u8 *data, i32 *residual, u32 blockNum)
           Perform intra 16x16 vertical prediction mode.
 
 ------------------------------------------------------------------------------*/
-
+#ifndef H264DEC_MSA
 void Intra16x16VerticalPrediction(u8 *data, u8 *above)
 {
 
@@ -1095,7 +1137,7 @@ void Intra16x16DcPrediction(u8 *data, u8 *above, u8 *left, u32 availableA,
         data[i] = (u8)tmp;
 
 }
-
+#endif
 /*------------------------------------------------------------------------------
 
     Function: Intra16x16PlanePrediction
@@ -1151,7 +1193,7 @@ void Intra16x16PlanePrediction(u8 *data, u8 *above, u8 *left)
           Perform intra chroma DC prediction mode.
 
 ------------------------------------------------------------------------------*/
-
+#ifndef H264DEC_MSA
 void IntraChromaDcPrediction(u8 *data, u8 *above, u8 *left, u32 availableA,
     u32 availableB)
 {
@@ -1310,7 +1352,7 @@ void IntraChromaVerticalPrediction(u8 *data, u8 *above)
     }
 
 }
-
+#endif
 /*------------------------------------------------------------------------------
 
     Function: IntraChromaPlanePrediction
@@ -1484,7 +1526,7 @@ void Get4x4NeighbourPels(u8 *a, u8 *l, u8 *data, u8 *above, u8 *left,
           Perform intra 4x4 vertical prediction mode.
 
 ------------------------------------------------------------------------------*/
-
+#ifndef H264DEC_MSA
 void Intra4x4VerticalPrediction(u8 *data, u8 *above)
 {
 
@@ -1594,7 +1636,7 @@ void Intra4x4DcPrediction(u8 *data, u8 *above, u8 *left, u32 availableA,
     data[12] = data[13] = data[14] = data[15] = (u8)tmp;
 
 }
-
+#endif
 /*------------------------------------------------------------------------------
 
     Function: Intra4x4DiagonalDownLeftPrediction

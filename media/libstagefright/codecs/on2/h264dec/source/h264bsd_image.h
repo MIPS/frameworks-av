@@ -60,8 +60,13 @@ typedef struct
 void h264bsdWriteMacroblock(image_t *image, u8 *data);
 
 #ifndef H264DEC_OMXDL
+#ifdef H264DEC_MSA
+void h264bsdWriteOutputBlocks(image_t *image, u32 mbNum, u8 *data,
+    i16 residual[][16]);
+#else
 void h264bsdWriteOutputBlocks(image_t *image, u32 mbNum, u8 *data,
     i32 residual[][16]);
+#endif
 #endif
 
 #endif /* #ifdef H264SWDEC_IMAGE_H */

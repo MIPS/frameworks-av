@@ -144,7 +144,12 @@ typedef struct
 #else
     i16 totalCoeff[27];
 #endif
+
+#ifdef H264DEC_MSA
+    i16 level[26][16];
+#else
     i32 level[26][16];
+#endif
     u32 coeffMap[24];
 } residual_t;
 
@@ -207,6 +212,23 @@ mbPartPredMode_e h264bsdMbPartPredMode(mbType_e mbType);
 u32 h264bsdClearMbLayer(macroblockLayer_t *pMbLayer, u32 size);
 #endif
 
+#ifdef H264DEC_MSA
+u32 avc_zigzag_idct16x16_luma_msa(i16  ai16Src[][16],
+                                  u32 u32Qp,
+                                  i16  *pi16TotalCoeff,
+                                  u32 *pu32CoeffMap);
+u32 avc_zigzag_idct4x4_luma_msa(i16  ai16Src[][16],
+                                u32  u32Qp,
+                                i16  *pi16TotalCoeff,
+                                u32  *pu32CoeffMap);
+void avc_zigzag_idct4x2_chroma_dc_msa(i16  *pi16Src,
+                                      u32 u32Qp);
+u32 avc_zigzag_idct4x4_chroma_msa(i16  ai16Src[][16],
+                                  i16  *pi16BlockDc,
+                                  u32  u32Qp,
+                                  i16  *pi16TotalCoeff,
+                                  u32  *pu32CoeffMap);
+#endif
 #endif /* #ifdef H264SWDEC_MACROBLOCK_LAYER_H */
 
 

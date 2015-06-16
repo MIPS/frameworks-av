@@ -105,7 +105,13 @@ static u32 ProcessIntra16x16Residual(mbStorage_t *pMb, u8 *data, u32 constrained
 
 
 #else
-static u32 ProcessResidual(mbStorage_t *pMb, i32 residualLevel[][16], u32 *);
+static u32 ProcessResidual(mbStorage_t *pMb,
+#ifdef H264DEC_MSA
+                            i16 residualLevel[][16],
+#else
+                            i32 residualLevel[][16],
+#endif
+                            u32 *);
 #endif
 
 /*------------------------------------------------------------------------------
@@ -169,7 +175,12 @@ u32 h264bsdDecodeMacroblockLayer(strmData_t *pStrmData,
 
     if (pMbLayer->mbType == I_PCM)
     {
+#ifdef H264DEC_MSA
+        i16 *level;
+#else
         i32 *level;
+#endif
+
         while( !h264bsdIsByteAligned(pStrmData) )
         {
             /* pcm_alignment_zero_bit */
@@ -707,7 +718,11 @@ u32 DecodeResidual(strmData_t *pStrmData, residual_t *pResidual,
     u32 blockCoded;
     u32 blockIndex;
     u32 is16x16;
+#ifdef H264DEC_MSA
+    i16 (*level)[16];
+#else
     i32 (*level)[16];
+#endif
 
 /* Code */
 
@@ -996,7 +1011,11 @@ u32 h264bsdDecodeMacroblock(mbStorage_t *pMb, macroblockLayer_t *pMbLayer,
 #else
         i16 *tot = pMb->totalCoeff;
 #endif
+#ifdef H264DEC_MSA
+        i16 *lev = pMbLayer->residual.level[0];
+#else
         i32 *lev = pMbLayer->residual.level[0];
+#endif
 
         pMb->qpY = 0;
 
@@ -1335,8 +1354,63 @@ u32 ProcessIntra4x4Residual(mbStorage_t *pMb,
           inverse quantization and inverse transform.
 
 ------------------------------------------------------------------------------*/
+#ifdef H264DEC_MSA
+u32 ProcessResidual(mbStorage_t *pMb, i16 residualLevel[][16], u32 *coeffMap)
+{
+    u32 chromaQp;
+    i16 (*blockData)[16];
+    i16 *totalCoeff;
+    i16 *chromaDc;
 
-u32 ProcessResidual(mbStorage_t *pMb, i32 residualLevel[][16], u32 *coeffMap)
+    ASSERT(pMb);
+    ASSERT(residualLevel);
+
+    blockData = residualLevel;
+    totalCoeff = pMb->totalCoeff;
+
+    if (h264bsdMbPartPredMode(pMb->mbType) == PRED_MODE_INTRA16x16)
+    {
+        if (avc_zigzag_idct16x16_luma_msa(residualLevel, pMb->qpY, totalCoeff, coeffMap) != HANTRO_OK)
+        {
+            return (HANTRO_NOK);
+        }
+
+        blockData += 16;
+        totalCoeff += 16;
+        coeffMap += 16;
+    }
+    else
+    {
+        if (avc_zigzag_idct4x4_luma_msa(residualLevel, pMb->qpY, totalCoeff, coeffMap) != HANTRO_OK)
+        {
+            return (HANTRO_NOK);
+        }
+
+        blockData += 16;
+        totalCoeff += 16;
+        coeffMap += 16;
+    }
+
+    /* chroma DC processing. First chroma dc block is block with index 25 */
+    chromaQp = h264bsdQpC[CLIP3(0, 51, (i32)pMb->qpY + pMb->chromaQpIndexOffset)];
+    if (pMb->totalCoeff[25] || pMb->totalCoeff[26])
+    {
+        avc_zigzag_idct4x2_chroma_dc_msa(residualLevel[25], chromaQp);
+    }
+
+    chromaDc = residualLevel[25];
+    if (avc_zigzag_idct4x4_chroma_msa(blockData, chromaDc, chromaQp, totalCoeff, coeffMap) != HANTRO_OK)
+    {
+        return (HANTRO_NOK);
+    }
+
+    return (HANTRO_OK);
+}
+
+#else
+u32 ProcessResidual(mbStorage_t *pMb,
+                    i32 residualLevel[][16],
+                    u32 *coeffMap)
 {
 
 /* Variables */
@@ -1418,6 +1492,7 @@ u32 ProcessResidual(mbStorage_t *pMb, i32 residualLevel[][16], u32 *coeffMap)
 
     return(HANTRO_OK);
 }
+#endif
 #endif /* H264DEC_OMXDL */
 
 /*------------------------------------------------------------------------------

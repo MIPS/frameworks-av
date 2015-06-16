@@ -59,6 +59,9 @@
 #include "armVC.h"
 #endif /* H264DEC_OMXDL */
 
+#ifdef H264DEC_MSA
+#include "./mips/msa/h264bsd_prototypes_msa.h"
+#endif
 /*------------------------------------------------------------------------------
     2. External compiler flags
 --------------------------------------------------------------------------------
@@ -129,10 +132,12 @@ typedef struct {
     u32 beta;
 } edgeThreshold_t;
 
+#ifndef H264DEC_MSA
 typedef struct {
     u32 top;
     u32 left;
 } bS_t;
+#endif
 
 enum { TOP = 0, LEFT = 1, INNER = 2 };
 #endif /* H264DEC_OMXDL */
@@ -149,11 +154,16 @@ extern const u8 h264bsdClip[];
     4. Local function prototypes
 ------------------------------------------------------------------------------*/
 
+#ifndef H264DEC_MSA
 static u32 InnerBoundaryStrength(mbStorage_t *mb1, u32 i1, u32 i2);
+#endif
 
 #ifndef H264DEC_OMXDL
+
+#ifndef H264DEC_MSA
 static u32 EdgeBoundaryStrength(mbStorage_t *mb1, mbStorage_t *mb2,
     u32 i1, u32 i2);
+#endif
 #else
 static u32 InnerBoundaryStrength2(mbStorage_t *mb1, u32 i1, u32 i2);
 static u32 EdgeBoundaryStrengthLeft(mbStorage_t *mb1, mbStorage_t *mb2);
@@ -167,15 +177,18 @@ static u32 IsSliceBoundaryOnTop(mbStorage_t *mb);
 static u32 GetMbFilteringFlags(mbStorage_t *mb);
 
 #ifndef H264DEC_OMXDL
-
+#ifndef H264DEC_MSA
 static u32 GetBoundaryStrengths(mbStorage_t *mb, bS_t *bs, u32 flags);
-
+#else
+u32 avc_get_boundary_strengths_msa(mbStorage_t *mb, bS_t *bs, u32 flags);
+#endif
 static void FilterLuma(u8 *data, bS_t *bS, edgeThreshold_t *thresholds,
         u32 imageWidth);
 
 static void FilterChroma(u8 *cb, u8 *cr, bS_t *bS, edgeThreshold_t *thresholds,
         u32 imageWidth);
 
+#ifndef H264DEC_MSA
 static void FilterVerLumaEdge( u8 *data, u32 bS, edgeThreshold_t *thresholds,
         u32 imageWidth);
 static void FilterHorLumaEdge( u8 *data, u32 bS, edgeThreshold_t *thresholds,
@@ -189,7 +202,7 @@ static void FilterHorChromaEdge( u8 *data, u32 bS, edgeThreshold_t *thresholds,
   i32 imageWidth);
 static void FilterHorChroma( u8 *data, u32 bS, edgeThreshold_t *thresholds,
   i32 imageWidth);
-
+#endif
 static void GetLumaEdgeThresholds(
   edgeThreshold_t *thresholds,
   mbStorage_t *mb,
@@ -608,7 +621,11 @@ void h264bsdFilterPicture(
         {
             /* GetBoundaryStrengths function returns non-zero value if any of
              * the bS values for the macroblock being processed was non-zero */
+        #ifndef H264DEC_MSA
             if (GetBoundaryStrengths(pMb, bS, flags))
+        #else
+            if (avc_get_boundary_strengths_msa(pMb, bS, flags))
+        #endif
             {
                 /* luma */
                 GetLumaEdgeThresholds(thresholds, pMb, flags);
@@ -646,6 +663,7 @@ void h264bsdFilterPicture(
             Filter one vertical 4-pixel luma edge.
 
 ------------------------------------------------------------------------------*/
+#ifndef H264DEC_MSA
 void FilterVerLumaEdge(
   u8 *data,
   u32 bS,
@@ -1368,6 +1386,7 @@ u32 GetBoundaryStrengths(mbStorage_t *mb, bS_t *bS, u32 flags)
     return(nonZeroBs);
 
 }
+#endif
 
 /*------------------------------------------------------------------------------
 
@@ -1531,6 +1550,7 @@ void GetChromaEdgeThresholds(
 
 }
 
+#ifndef H264DEC_MSA
 /*------------------------------------------------------------------------------
 
     Function: FilterLuma
@@ -1734,6 +1754,278 @@ void FilterChroma(
         offset = INNER;
     }
 }
+#else
+/*------------------------------------------------------------------------------
+
+    Function: FilterLuma
+
+        Functional description:
+            Function to filter all luma edges of a macroblock
+
+------------------------------------------------------------------------------*/
+void FilterLuma(u8 *data, bS_t *bS, edgeThreshold_t *thresholds, u32 width)
+{
+    u32 vblock;
+    bS_t *tmp;
+    u8 *ptr;
+    u32 offset;
+    u8 bs0, bs1, bs2, bs3;
+    u8 tc0 = 0, tc1 = 0, tc2 = 0, tc3 = 0;
+    u8 alpha, beta;
+
+    ptr = data;
+    tmp = bS;
+    offset = LEFT;
+
+    /* loop block rows, perform filtering for all vertical edges of the block
+     * row first, then filter each horizontal edge of the row */
+    for (vblock = 4; vblock--;)
+    {
+        /* only perform filtering if bS is non-zero, first of the four
+         * FilterVerLumaEdge handles the left edge of the macroblock, others
+         * filter inner edges */
+
+        bs0 = tmp[0].left;
+        bs1 = tmp[4].left;
+        bs2 = tmp[8].left;
+        bs3 = tmp[12].left;
+
+        alpha = (thresholds + offset)->alpha;
+        beta = (thresholds + offset)->beta;
+
+        if ((bs0 == 4) && (bs1 == 4) && (bs2 == 4) && (bs3 == 4))
+        {
+            avc_loopfilter_luma_intra_edge_ver_msa(ptr, alpha, beta, width);
+        }
+        else
+        {
+            if (bs0)
+            {
+                tc0 = (thresholds + offset)->tc0[bs0 - 1];
+            }
+
+            if (bs1)
+            {
+                tc1 = (thresholds + offset)->tc0[bs1 - 1];
+            }
+
+            if (bs2)
+            {
+                tc2 = (thresholds + offset)->tc0[bs2 - 1];
+            }
+
+            if (bs3)
+            {
+                tc3 = (thresholds + offset)->tc0[bs3 - 1];
+            }
+
+            avc_loopfilter_luma_inter_edge_ver_msa(ptr, bs0, bs1, bs2, bs3,
+                                                   tc0, tc1, tc2, tc3,
+                                                   alpha, beta, width);
+        }
+
+        ptr += 4;
+        tmp += 1;
+        offset = INNER;
+    }
+
+    /* if bS is equal for all horizontal edges of the row -> perform
+     * filtering with FilterHorLuma, otherwise use FilterHorLumaEdge for
+     * each edge separately. offset variable indicates top macroblock edge
+     * on the first loop round, inner edge for the other rounds */
+    ptr = data;
+    tmp = bS;
+    offset = TOP;
+
+    for (vblock = 4; vblock--;)
+    {
+        bs0 = tmp[0].top;
+        bs1 = tmp[1].top;
+        bs2 = tmp[2].top;
+        bs3 = tmp[3].top;
+
+        alpha = (thresholds + offset)->alpha;
+        beta = (thresholds + offset)->beta;
+
+        if ((bs0 == 4) && (bs2 == 4) && (bs1 == 4) && (bs3 == 4))
+        {
+            avc_loopfilter_luma_intra_edge_hor_msa(ptr, alpha, beta, width);
+        }
+        else
+        {
+            if (bs0)
+            {
+                tc0 = (thresholds + offset)->tc0[bs0 - 1];
+            }
+
+            if (bs1)
+            {
+                tc1 = (thresholds + offset)->tc0[bs1 - 1];
+            }
+
+            if (bs2)
+            {
+                tc2 = (thresholds + offset)->tc0[bs2 - 1];
+            }
+
+            if (bs3)
+            {
+                tc3 = (thresholds + offset)->tc0[bs3 - 1];
+            }
+
+            avc_loopfilter_luma_inter_edge_hor_msa(ptr, bs0, bs1, bs2, bs3,
+                                                   tc0, tc1, tc2, tc3,
+                                                   alpha, beta, width);
+        }
+
+        /* four pixel rows ahead, i.e. next row of 4x4-blocks */
+        ptr += width * 4;
+        tmp += 4;
+        offset = INNER;
+    }
+}
+
+/*------------------------------------------------------------------------------
+
+    Function: FilterChroma
+
+        Functional description:
+            Function to filter all chroma edges of a macroblock
+
+------------------------------------------------------------------------------*/
+void FilterChroma(u8 *dataCb, u8 *dataCr, bS_t *bS,
+                  edgeThreshold_t *thresholds, u32 width)
+{
+    u32 vblock;
+    bS_t *tmp;
+    u32 offset;
+    u8 *tempCb, *tempCr;
+    u8 bs0, bs1, bs2, bs3;
+    u8 tc0 = 0, tc1 = 0, tc2 = 0, tc3 = 0;
+    u8 alpha, beta;
+
+    tempCb = dataCb;
+    tempCr = dataCr;
+
+    tmp = bS;
+    offset = LEFT;
+
+    /* loop block rows, perform filtering for all vertical edges of the block
+     * row first, then filter each horizontal edge of the row */
+    for (vblock = 0; vblock < 2; vblock++)
+    {
+        /* only perform filtering if bS is non-zero, first two of the four
+         * FilterVerChromaEdge calls handle the left edge of the macroblock,
+         * others filter the inner edge. Note that as chroma uses bS values
+         * determined for luma edges, each bS is used only for 2 pixels of
+         * a 4-pixel edge */
+
+        bs0 = tmp[0].left;
+        bs1 = tmp[4].left;
+        bs2 = tmp[8].left;
+        bs3 = tmp[12].left;
+
+        alpha = (thresholds + offset)->alpha;
+        beta = (thresholds + offset)->beta;
+
+        if ((bs0 == 4) && (bs2 == 4) && (bs1 == 4) && (bs3 == 4))
+        {
+            avc_loopfilter_cbcr_intra_edge_ver_msa(dataCb, dataCr,
+                                                   alpha, beta, width);
+        }
+        else
+        {
+            if (bs0)
+            {
+                tc0 = (thresholds + offset)->tc0[bs0 - 1] + 1;
+            }
+
+            if (bs1)
+            {
+                tc1 = (thresholds + offset)->tc0[bs1 - 1] + 1;
+            }
+
+            if (bs2)
+            {
+                tc2 = (thresholds + offset)->tc0[bs2 - 1] + 1;
+            }
+
+            if (bs3)
+            {
+                tc3 = (thresholds + offset)->tc0[bs3 - 1] + 1;
+            }
+
+            avc_loopfilter_cbcr_inter_edge_ver_msa(dataCb, dataCr,
+                                                   bs0, bs1, bs2, bs3,
+                                                   tc0, tc1, tc2, tc3,
+                                                   alpha, beta, width);
+        }
+
+        tmp += 2;
+        dataCb += 4;
+        dataCr += 4;
+        offset = INNER;
+    }
+
+    /* if bS is equal for all horizontal edges of the row -> perform
+     * filtering with FilterHorChromaEdgeIntra, otherwise use FilterHorChromaEdgeInter
+     * for each edge separately. offset variable indicates top macroblock
+     * edge on the first loop round, inner edge for the second */
+    dataCb = tempCb;
+    dataCr = tempCr;
+
+    tmp = bS;
+    offset = TOP;
+    for (vblock = 0; vblock < 2; vblock++)
+    {
+        bs0 = tmp[0].top;
+        bs1 = tmp[1].top;
+        bs2 = tmp[2].top;
+        bs3 = tmp[3].top;
+
+        alpha = (thresholds + offset)->alpha;
+        beta = (thresholds + offset)->beta;
+
+        if ((bs0 == 4) && (bs2 == 4) && (bs1 == 4) && (bs3 == 4))
+        {
+            avc_loopfilter_cbcr_intra_edge_hor_msa(dataCb, dataCr,
+                                                   alpha, beta, width);
+        }
+        else
+        {
+            if (bs0)
+            {
+                tc0 = (thresholds + offset)->tc0[bs0 - 1] + 1;
+            }
+
+            if (bs1)
+            {
+                tc1 = (thresholds + offset)->tc0[bs1 - 1] + 1;
+            }
+
+            if (bs2)
+            {
+                tc2 = (thresholds + offset)->tc0[bs2 - 1] + 1;
+            }
+
+            if (bs3)
+            {
+                tc3 = (thresholds + offset)->tc0[bs3 - 1] + 1;
+            }
+
+            avc_loopfilter_cbcr_inter_edge_hor_msa(dataCb, dataCr,
+                                                   bs0, bs1, bs2, bs3,
+                                                   tc0, tc1, tc2, tc3,
+                                                   alpha, beta, width);
+        }
+
+        tmp += 8;
+        dataCb += width * 4;
+        dataCr += width * 4;
+        offset = INNER;
+    }
+}
+#endif
 
 #else /* H264DEC_OMXDL */
 

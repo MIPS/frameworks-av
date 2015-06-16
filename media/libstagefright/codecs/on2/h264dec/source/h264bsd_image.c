@@ -36,6 +36,7 @@
 #include "h264bsd_util.h"
 #include "h264bsd_neighbour.h"
 
+#ifndef H264DEC_MSA
 /*------------------------------------------------------------------------------
     2. External compiler flags
 --------------------------------------------------------------------------------
@@ -342,4 +343,4 @@ void h264bsdWriteOutputBlocks(image_t *image, u32 mbNum, u8 *data,
 
 }
 #endif /* H264DEC_OMXDL */
-
+#endif

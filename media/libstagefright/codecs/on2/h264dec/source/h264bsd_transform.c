@@ -91,6 +91,7 @@ static const u8 qpDiv6[52] = {0,0,0,0,0,0,1,1,1,1,1,1,2,2,2,2,2,2,3,3,3,3,3,3,
             HANTRO_NOK      processed data not in valid range [-512, 511]
 
 ------------------------------------------------------------------------------*/
+#ifndef H264DEC_MSA
 u32 h264bsdProcessBlock(i32 *data, u32 qp, u32 skip, u32 coeffMap)
 {
 
@@ -396,6 +397,7 @@ void h264bsdProcessChromaDc(i32 *data, u32 qp)
     data[7] = ((tmp1 - tmp2) * levScale) >> levShift;
 
 }
+#endif
 
 /*lint +e701 +e702 */
 
