@@ -17,6 +17,10 @@
  */
 #include "avcenc_lib.h"
 
+#ifdef H264ENC_MSA
+#include "prototypes_msa.h"
+#endif
+
 #define TH_I4  0  /* threshold biasing toward I16 mode instead of I4 mode */
 #define TH_Intra  0 /* threshold biasing toward INTER mode instead of intra mode */
 
@@ -224,6 +228,14 @@ void intrapred_luma_16x16(AVCEncObject *encvid)
     int H = 0, V = 0, tmp, value;
     int i;
 
+#ifdef H264ENC_MSA
+    intra_predict_hor_vert_dc_16x16_msa(curL - pitch, curL - 1, pitch,
+                                        encvid->pred_i16[AVC_I16_Vertical],
+                                        encvid->pred_i16[AVC_I16_Horizontal],
+                                        encvid->pred_i16[AVC_I16_DC],
+                                        16, video->intraAvailB,
+                                        video->intraAvailA);
+#else
     if (video->intraAvailB)
     {
         //get vertical prediction mode
@@ -320,6 +332,7 @@ void intrapred_luma_16x16(AVCEncObject *encvid)
         *((uint32*)(pred + 8)) = sum;
         *((uint32*)(pred + 12)) = sum;
     }
+#endif
 
     // get plane mode
     if (video->intraAvailA && video->intraAvailB && video->intraAvailD)
@@ -438,7 +451,13 @@ void find_cost_16x16(AVCEncObject *encvid, uint8 *orgY, int *min_cost)
     /* evaluate vertical mode */
     if (video->intraAvailB)
     {
+#ifdef H264ENC_MSA
+        cost = avc_calc_residue_satd_16x16_msa(orgY, org_pitch,
+                                               encvid->pred_i16[AVC_I16_Vertical],
+                                               16);
+#else
         cost = cost_i16(orgY, org_pitch, encvid->pred_i16[AVC_I16_Vertical], *min_cost);
+#endif
         if (cost < *min_cost)
         {
             *min_cost = cost;
@@ -452,7 +471,13 @@ void find_cost_16x16(AVCEncObject *encvid, uint8 *orgY, int *min_cost)
     /* evaluate horizontal mode */
     if (video->intraAvailA)
     {
+#ifdef H264ENC_MSA
+        cost = avc_calc_residue_satd_16x16_msa(orgY, org_pitch,
+                                               encvid->pred_i16[AVC_I16_Horizontal],
+                                               16);
+#else
         cost = cost_i16(orgY, org_pitch, encvid->pred_i16[AVC_I16_Horizontal], *min_cost);
+#endif
         if (cost < *min_cost)
         {
             *min_cost = cost;
@@ -463,7 +488,12 @@ void find_cost_16x16(AVCEncObject *encvid, uint8 *orgY, int *min_cost)
     }
 
     /* evaluate DC mode */
+#ifdef H264ENC_MSA
+    cost = avc_calc_residue_satd_16x16_msa(orgY, org_pitch,
+                                           encvid->pred_i16[AVC_I16_DC], 16);
+#else
     cost = cost_i16(orgY, org_pitch, encvid->pred_i16[AVC_I16_DC], *min_cost);
+#endif
     if (cost < *min_cost)
     {
         *min_cost = cost;
@@ -475,7 +505,13 @@ void find_cost_16x16(AVCEncObject *encvid, uint8 *orgY, int *min_cost)
     /* evaluate plane mode */
     if (video->intraAvailA && video->intraAvailB && video->intraAvailD)
     {
+#ifdef H264ENC_MSA
+        cost = avc_calc_residue_satd_16x16_msa(orgY, org_pitch,
+                                               encvid->pred_i16[AVC_I16_Plane],
+                                               16);
+#else
         cost = cost_i16(orgY, org_pitch, encvid->pred_i16[AVC_I16_Plane], *min_cost);
+#endif
         if (cost < *min_cost)
         {
             *min_cost = cost;
@@ -1197,8 +1233,11 @@ int blk_intra4x4_search(AVCEncObject *encvid, int blkidx, uint8 *cur, uint8 *org
             cost  = (ipmode == mostProbableMode) ? 0 : fixedcost;
             pred = encvid->pred_i4[ipmode];
 
+#ifdef H264ENC_MSA
+            cost += avc_calc_residue_satd_4x4_msa(org, org_pitch, pred, 4);
+#else
             cost_i4(org, org_pitch, pred, &cost);
-
+#endif
             if (cost < min_cost)
             {
                 currMB->i4Mode[blkidx] = (AVCIntra4x4PredMode)ipmode;

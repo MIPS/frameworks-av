@@ -18,6 +18,9 @@
 #include "avcenc_lib.h"
 #include "avcenc_int.h"
 
+#ifdef H264ENC_MSA
+#include "prototypes_msa.h"
+#endif
 
 #define CLIP_RESULT(x)      if((uint)x > 0xFF){ \
                  x = 0xFF & (~(x>>31));}
@@ -148,20 +151,111 @@ void eLumaMotionComp(uint8 *ref, int picpitch, int picheight,
 
         ref += y_pos * picpitch + x_pos;
 
+#ifdef H264ENC_MSA
+        if (blkwidth == 16)
+        {
+            if (dx&1) /* a, c*/
+            {
+                dx = ((dx >> 1) ? 1 : 0); /* use in 3/4 pel */
+                avc_luma_hz_qrt_16w_msa(ref - 2, picpitch, pred, pred_pitch,
+                                        blkheight, dx);
+            }
+            else /* b */
+            {
+                avc_luma_hz_16w_msa(ref - 2, picpitch, pred, pred_pitch,
+                                    blkheight);
+            }
+        }
+        else if (blkwidth == 8)
+        {
+            if (dx&1) /* a, c*/
+            {
+                dx = ((dx >> 1) ? 1 : 0); /* use in 3/4 pel */
+                avc_luma_hz_qrt_8w_msa(ref - 2, picpitch, pred, pred_pitch,
+                                       blkheight, dx);
+            }
+            else /* b */
+            {
+                avc_luma_hz_8w_msa(ref - 2, picpitch, pred, pred_pitch,
+                                   blkheight);
+            }
+        }
+        else
+#endif
         eHorzInterp1MC(ref, picpitch, pred, pred_pitch, blkwidth, blkheight, dx);
     }
     else if (dx == 0)
     { /*no horizontal interpolation *//* d,h,n */
 
         ref += y_pos * picpitch + x_pos;
-
+#ifdef H264ENC_MSA
+        if (blkwidth == 16)
+        {
+            if (dy&1) /* d, n*/
+            {
+                dy = ((dy >> 1) ? 1 : 0); /* use in 3/4 pel */
+                avc_luma_vt_qrt_16w_msa(ref - (picpitch <<1), picpitch,
+                                        pred, pred_pitch, blkheight, dy);
+            }
+            else /* h */
+            {
+                avc_luma_vt_16w_msa(ref - (picpitch <<1), picpitch,
+                                    pred, pred_pitch, blkheight);
+            }
+        }
+        else if (blkwidth == 8)
+        {
+            if (dy&1) /* d, n*/
+            {
+                dy = ((dy >> 1) ? 1 : 0); /* use in 3/4 pel */
+                avc_luma_vt_qrt_8w_msa(ref - (picpitch <<1), picpitch,
+                                       pred, pred_pitch, blkheight, dy);
+            }
+            else /* h */
+            {
+                avc_luma_vt_8w_msa(ref - (picpitch <<1), picpitch,
+                                   pred, pred_pitch, blkheight);
+            }
+        }
+        else
+#endif
         eVertInterp1MC(ref, picpitch, pred, pred_pitch, blkwidth, blkheight, dy);
     }
     else if (dy == 2)
     {  /* horizontal cross *//* i, j, k */
 
         ref += y_pos * picpitch + x_pos - 2; /* move to the left 2 pixels */
-
+#ifdef H264ENC_MSA
+        if (blkwidth == 16)
+        {
+            if (dx&1) /* i, k */
+            {
+                dx = ((dx >> 1) ? 1 : 0); /* use in 3/4 pel */
+                avc_luma_midh_qrt_16w_msa(ref - (picpitch <<1), picpitch,
+                                          pred, pred_pitch, blkheight, dx);
+            }
+            else  /* j */
+            {
+                avc_luma_mid_16w_msa(ref - (picpitch <<1), picpitch,
+                                     pred, pred_pitch, blkheight);
+            }
+        }
+        else if (blkwidth == 8)
+        {
+            if (dx&1) /* i, k */
+            {
+                dx = ((dx >> 1) ? 1 : 0); /* use in 3/4 pel */
+                avc_luma_midh_qrt_8w_msa(ref - (picpitch <<1), picpitch,
+                                         pred, pred_pitch, blkheight, dx);
+            }
+            else  /* j */
+            {
+                avc_luma_mid_8w_msa(ref - (picpitch <<1), picpitch,
+                                    pred, pred_pitch, blkheight);
+            }
+        }
+        else
+#endif
         eVertInterp2MC(ref, picpitch, &temp2[0][0], 21, blkwidth + 5, blkheight);
 
         eHorzInterp2MC(&temp2[0][2], 21, pred, pred_pitch, blkwidth, blkheight, dx);
@@ -170,7 +264,21 @@ void eLumaMotionComp(uint8 *ref, int picpitch, int picheight,
     { /* vertical cross */ /* f,q */
 
         ref += (y_pos - 2) * picpitch + x_pos; /* move to up 2 lines */
-
+#ifdef H264ENC_MSA
+        if (blkwidth == 16)
+        {
+            dy = ((dy >> 1) ? 1 : 0); /* use in 3/4 pel */
+            avc_luma_midv_qrt_16w_msa(ref - 2, picpitch, pred, pred_pitch,
+                                      blkheight, dy);
+        }
+        else if (blkwidth == 8)
+        {
+            dy = ((dy >> 1) ? 1 : 0); /* use in 3/4 pel */
+            avc_luma_midv_qrt_8w_msa(ref - 2, picpitch, pred, pred_pitch,
+                                     blkheight, dy);
+        }
+        else
+#endif
         eHorzInterp3MC(ref, picpitch, &temp2[0][0], 21, blkwidth, blkheight + 5);
         eVertInterp3MC(&temp2[2][0], 21, pred, pred_pitch, blkwidth, blkheight, dy);
     }
@@ -181,6 +289,19 @@ void eLumaMotionComp(uint8 *ref, int picpitch, int picheight,
 
         ref += (y_pos * picpitch) + x_pos + (dx / 2);
 
+#ifdef H264ENC_MSA
+        if (blkwidth == 16)
+        {
+            avc_luma_hv_qrt_16w_msa(ref2 - 2, ref - (picpitch <<1), picpitch,
+                                    pred, pred_pitch, blkheight);
+        }
+        else if (blkwidth == 8)
+        {
+            avc_luma_hv_qrt_8w_msa(ref2 - 2, ref - (picpitch <<1), picpitch,
+                                   pred, pred_pitch, blkheight);
+        }
+        else
+#endif
         eDiagonalInterpMC(ref2, ref, picpitch, pred, pred_pitch, blkwidth, blkheight);
     }
 
@@ -1833,91 +1954,112 @@ void eChromaMotionComp(uint8 *ref, int picwidth, int picheight,
 void eChromaDiagonalMC_SIMD(uint8 *pRef, int srcPitch, int dx, int dy,
                             uint8 *pOut, int predPitch, int blkwidth, int blkheight)
 {
-    int32 r0, r1, r2, r3, result0, result1;
-    uint8 temp[288];
-    uint8 *ref, *out;
-    int i, j;
-    int dx_8 = 8 - dx;
-    int dy_8 = 8 - dy;
-
-    /* horizontal first */
-    out = temp;
-    for (i = 0; i < blkheight + 1; i++)
+#ifdef H264ENC_MSA
+    if(blkwidth == 8)
     {
-        ref = pRef;
-        r0 = ref[0];
+        int dx_8 = 8 - dx;
+        int dy_8 = 8 - dy;
+
+        avc_chroma_hv_8w_msa(pRef, srcPitch, pOut, predPitch,
+                             dx, dx_8, dy, dy_8, blkheight);
+    }
+    else if(blkwidth == 4)
+    {
+        int dx_8 = 8 - dx;
+        int dy_8 = 8 - dy;
+
+        avc_chroma_hv_4w_msa(pRef, srcPitch, pOut, predPitch,
+                             dx, dx_8, dy, dy_8, blkheight);
+    }
+    else
+#endif
+    {
+        int32 r0, r1, r2, r3, result0, result1;
+        uint8 temp[288];
+        uint8 *ref, *out;
+        int i, j;
+        int dx_8 = 8 - dx;
+        int dy_8 = 8 - dy;
+
+        /* horizontal first */
+        out = temp;
+        for (i = 0; i < blkheight + 1; i++)
+        {
+            ref = pRef;
+            r0 = ref[0];
+            for (j = 0; j < blkwidth; j += 4)
+            {
+                r0 |= (ref[2] << 16);
+                result0 = dx_8 * r0;
+
+                r1 = ref[1] | (ref[3] << 16);
+                result0 += dx * r1;
+                *(int32 *)out = result0;
+
+                result0 = dx_8 * r1;
+
+                r2 = ref[4];
+                r0 = r0 >> 16;
+                r1 = r0 | (r2 << 16);
+                result0 += dx * r1;
+                *(int32 *)(out + 16) = result0;
+
+                ref += 4;
+                out += 4;
+                r0 = r2;
+            }
+            pRef += srcPitch;
+            out += (32 - blkwidth);
+        }
+
+//      pRef -= srcPitch*(blkheight+1);
+        ref = temp;
+
         for (j = 0; j < blkwidth; j += 4)
         {
-            r0 |= (ref[2] << 16);
-            result0 = dx_8 * r0;
-
-            r1 = ref[1] | (ref[3] << 16);
-            result0 += dx * r1;
-            *(int32 *)out = result0;
-
-            result0 = dx_8 * r1;
-
-            r2 = ref[4];
-            r0 = r0 >> 16;
-            r1 = r0 | (r2 << 16);
-            result0 += dx * r1;
-            *(int32 *)(out + 16) = result0;
-
-            ref += 4;
-            out += 4;
-            r0 = r2;
-        }
-        pRef += srcPitch;
-        out += (32 - blkwidth);
-    }
-
-//  pRef -= srcPitch*(blkheight+1);
-    ref = temp;
-
-    for (j = 0; j < blkwidth; j += 4)
-    {
-        r0 = *(int32 *)ref;
-        r1 = *(int32 *)(ref + 16);
-        ref += 32;
-        out = pOut;
-        for (i = 0; i < (blkheight >> 1); i++)
-        {
-            result0 = dy_8 * r0 + 0x00200020;
-            r2 = *(int32 *)ref;
-            result0 += dy * r2;
-            result0 >>= 6;
-            result0 &= 0x00FF00FF;
-            r0 = r2;
-
-            result1 = dy_8 * r1 + 0x00200020;
-            r3 = *(int32 *)(ref + 16);
-            result1 += dy * r3;
-            result1 >>= 6;
-            result1 &= 0x00FF00FF;
-            r1 = r3;
-            *(int32 *)out = result0 | (result1 << 8);
-            out += predPitch;
+            r0 = *(int32 *)ref;
+            r1 = *(int32 *)(ref + 16);
             ref += 32;
+            out = pOut;
+            for (i = 0; i < (blkheight >> 1); i++)
+            {
+                result0 = dy_8 * r0 + 0x00200020;
+                r2 = *(int32 *)ref;
+                result0 += dy * r2;
+                result0 >>= 6;
+                result0 &= 0x00FF00FF;
+                r0 = r2;
 
-            result0 = dy_8 * r0 + 0x00200020;
-            r2 = *(int32 *)ref;
-            result0 += dy * r2;
-            result0 >>= 6;
-            result0 &= 0x00FF00FF;
-            r0 = r2;
+                result1 = dy_8 * r1 + 0x00200020;
+                r3 = *(int32 *)(ref + 16);
+                result1 += dy * r3;
+                result1 >>= 6;
+                result1 &= 0x00FF00FF;
+                r1 = r3;
+                *(int32 *)out = result0 | (result1 << 8);
+                out += predPitch;
+                ref += 32;
 
-            result1 = dy_8 * r1 + 0x00200020;
-            r3 = *(int32 *)(ref + 16);
-            result1 += dy * r3;
-            result1 >>= 6;
-            result1 &= 0x00FF00FF;
-            r1 = r3;
-            *(int32 *)out = result0 | (result1 << 8);
-            out += predPitch;
-            ref += 32;
+                result0 = dy_8 * r0 + 0x00200020;
+                r2 = *(int32 *)ref;
+                result0 += dy * r2;
+                result0 >>= 6;
+                result0 &= 0x00FF00FF;
+                r0 = r2;
+
+                result1 = dy_8 * r1 + 0x00200020;
+                r3 = *(int32 *)(ref + 16);
+                result1 += dy * r3;
+                result1 >>= 6;
+                result1 &= 0x00FF00FF;
+                r1 = r3;
+                *(int32 *)out = result0 | (result1 << 8);
+                out += predPitch;
+                ref += 32;
+            }
+            pOut += 4;
+            ref = temp + 4; /* since it can only iterate twice max */
         }
-        pOut += 4;
-        ref = temp + 4; /* since it can only iterate twice max */
     }
     return;
 }
@@ -1927,46 +2069,63 @@ void eChromaHorizontalMC_SIMD(uint8 *pRef, int srcPitch, int dx, int dy,
 {
     (void)(dy);
 
-    int32 r0, r1, r2, result0, result1;
-    uint8 *ref, *out;
-    int i, j;
-    int dx_8 = 8 - dx;
-
-    /* horizontal first */
-    for (i = 0; i < blkheight; i++)
+#ifdef H264ENC_MSA
+    if (blkwidth == 8)
     {
-        ref = pRef;
-        out = pOut;
+        int dx_8 = 8 - dx;
+        avc_chroma_hz_8w_msa(pRef, srcPitch, pOut, predPitch,
+                             dx, dx_8, blkheight);
+    }
+    else if (blkwidth == 4)
+    {
+        int dx_8 = 8 - dx;
+        avc_chroma_hz_4w_msa(pRef, srcPitch, pOut, predPitch,
+                             dx, dx_8, blkheight);
+    }
+    else
+#endif
+    {
+        int32 r0, r1, r2, result0, result1;
+        uint8 *ref, *out;
+        int i, j;
+        int dx_8 = 8 - dx;
 
-        r0 = ref[0];
-        for (j = 0; j < blkwidth; j += 4)
+        /* horizontal first */
+        for (i = 0; i < blkheight; i++)
         {
-            r0 |= (ref[2] << 16);
-            result0 = dx_8 * r0 + 0x00040004;
+            ref = pRef;
+            out = pOut;
 
-            r1 = ref[1] | (ref[3] << 16);
-            result0 += dx * r1;
-            result0 >>= 3;
-            result0 &= 0x00FF00FF;
+            r0 = ref[0];
+            for (j = 0; j < blkwidth; j += 4)
+            {
+                r0 |= (ref[2] << 16);
+                result0 = dx_8 * r0 + 0x00040004;
 
-            result1 = dx_8 * r1 + 0x00040004;
+                r1 = ref[1] | (ref[3] << 16);
+                result0 += dx * r1;
+                result0 >>= 3;
+                result0 &= 0x00FF00FF;
 
-            r2 = ref[4];
-            r0 = r0 >> 16;
-            r1 = r0 | (r2 << 16);
-            result1 += dx * r1;
-            result1 >>= 3;
-            result1 &= 0x00FF00FF;
+                result1 = dx_8 * r1 + 0x00040004;
 
-            *(int32 *)out = result0 | (result1 << 8);
+                r2 = ref[4];
+                r0 = r0 >> 16;
+                r1 = r0 | (r2 << 16);
+                result1 += dx * r1;
+                result1 >>= 3;
+                result1 &= 0x00FF00FF;
 
-            ref += 4;
-            out += 4;
-            r0 = r2;
+                *(int32 *)out = result0 | (result1 << 8);
+
+                ref += 4;
+                out += 4;
+                r0 = r2;
+            }
+
+            pRef += srcPitch;
+            pOut += predPitch;
         }
-
-        pRef += srcPitch;
-        pOut += predPitch;
     }
     return;
 }
@@ -1976,40 +2135,57 @@ void eChromaVerticalMC_SIMD(uint8 *pRef, int srcPitch, int dx, int dy,
 {
     (void)(dx);
 
-    int32 r0, r1, r2, r3, result0, result1;
-    int i, j;
-    uint8 *ref, *out;
-    int dy_8 = 8 - dy;
-    /* vertical first */
-    for (i = 0; i < blkwidth; i += 4)
+#ifdef H264ENC_MSA
+    if (blkwidth == 8)
     {
-        ref = pRef;
-        out = pOut;
-
-        r0 = ref[0] | (ref[2] << 16);
-        r1 = ref[1] | (ref[3] << 16);
-        ref += srcPitch;
-        for (j = 0; j < blkheight; j++)
+        int dy_8 = 8 - dy;
+        avc_chroma_vt_8w_msa(pRef, srcPitch, pOut, predPitch,
+                             dy, dy_8, blkheight);
+    }
+    else if (blkwidth == 4)
+    {
+        int dy_8 = 8 - dy;
+        avc_chroma_vt_4w_msa(pRef, srcPitch, pOut, predPitch,
+                             dy, dy_8, blkheight);
+    }
+    else
+#endif
+    {
+        int32 r0, r1, r2, r3, result0, result1;
+        int i, j;
+        uint8 *ref, *out;
+        int dy_8 = 8 - dy;
+        /* vertical first */
+        for (i = 0; i < blkwidth; i += 4)
         {
-            result0 = dy_8 * r0 + 0x00040004;
-            r2 = ref[0] | (ref[2] << 16);
-            result0 += dy * r2;
-            result0 >>= 3;
-            result0 &= 0x00FF00FF;
-            r0 = r2;
+            ref = pRef;
+            out = pOut;
 
-            result1 = dy_8 * r1 + 0x00040004;
-            r3 = ref[1] | (ref[3] << 16);
-            result1 += dy * r3;
-            result1 >>= 3;
-            result1 &= 0x00FF00FF;
-            r1 = r3;
-            *(int32 *)out = result0 | (result1 << 8);
+            r0 = ref[0] | (ref[2] << 16);
+            r1 = ref[1] | (ref[3] << 16);
             ref += srcPitch;
-            out += predPitch;
+            for (j = 0; j < blkheight; j++)
+            {
+                result0 = dy_8 * r0 + 0x00040004;
+                r2 = ref[0] | (ref[2] << 16);
+                result0 += dy * r2;
+                result0 >>= 3;
+                result0 &= 0x00FF00FF;
+                r0 = r2;
+
+                result1 = dy_8 * r1 + 0x00040004;
+                r3 = ref[1] | (ref[3] << 16);
+                result1 += dy * r3;
+                result1 >>= 3;
+                result1 &= 0x00FF00FF;
+                r1 = r3;
+                *(int32 *)out = result0 | (result1 << 8);
+                ref += srcPitch;
+                out += predPitch;
+            }
+            pOut += 4;
+            pRef += 4;
         }
-        pOut += 4;
-        pRef += 4;
     }
     return;
 }

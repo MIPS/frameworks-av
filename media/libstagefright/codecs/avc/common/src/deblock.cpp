@@ -19,9 +19,22 @@
 #include <string.h>
 
 #include "avclib_common.h"
+#ifdef H264ENC_MSA
+#include "prototypes_msa.h"
+#endif
 
 #define MAX_QP 51
 #define MB_BLOCK_SIZE 16
+
+#ifdef H264ENC_MSA
+void edge_loop_chroma_vertical_msa(uint8 *src_cb, uint8 *src_cr,
+                                   uint8 *strength, int alpha, int beta,
+                                   int *clip_table, int pitch);
+
+void edge_loop_chroma_horizontal_msa(uint8 *src_cb, uint8 *src_cr,
+                                     uint8 *strength, int alpha, int beta,
+                                     int *clip_table, int pitch);
+#endif
 
 // NOTE: these 3 tables are for funtion GetStrength() only
 const static int ININT_STRENGTH[4] = {0x04040404, 0x03030303, 0x03030303, 0x03030303};
@@ -358,12 +371,22 @@ void DeblockMb(AVCCommonObj *video, int mb_x, int mb_y, uint8 *SrcY, uint8 *SrcU
             clipTable = (int *) CLIP_TAB[indexA];
             if (Alpha > 0 && Beta > 0)
             {
+#ifdef H264ENC_MSA
+#ifdef USE_PRED_BLOCK
+                edge_loop_chroma_vertical_msa(SrcV, SrcU, Strength, Alpha,
+                                              Beta, clipTable, 12);
+#else
+                edge_loop_chroma_vertical_msa(SrcV, SrcU, Strength, Alpha,
+                                              Beta, clipTable, pitch >> 1);
+#endif
+#else
 #ifdef USE_PRED_BLOCK
                 EdgeLoop_Chroma_vertical(SrcU, Strength, Alpha, Beta, clipTable, 12);
                 EdgeLoop_Chroma_vertical(SrcV, Strength, Alpha, Beta, clipTable, 12);
 #else
                 EdgeLoop_Chroma_vertical(SrcU, Strength, Alpha, Beta, clipTable, pitch >> 1);
                 EdgeLoop_Chroma_vertical(SrcV, Strength, Alpha, Beta, clipTable, pitch >> 1);
+#endif
 #endif
             }
         }
@@ -414,12 +437,28 @@ void DeblockMb(AVCCommonObj *video, int mb_x, int mb_y, uint8 *SrcY, uint8 *SrcU
 
             if (!(edge & 1) && Alpha_c > 0 && Beta_c > 0)
             {
+#ifdef H264ENC_MSA
+#ifdef USE_PRED_BLOCK
+                edge_loop_chroma_vertical_msa(SrcV + (edge << 1),
+                                              SrcU + (edge << 1),
+                                              Strength + (edge << 2),
+                                              Alpha_c, Beta_c,
+                                              clipTable_c, 12);
+#else
+                edge_loop_chroma_vertical_msa(SrcV + (edge << 1),
+                                              SrcU + (edge << 1),
+                                              Strength + (edge << 2),
+                                              Alpha_c, Beta_c,
+                                              clipTable_c, pitch >> 1);
+#endif
+#else
 #ifdef USE_PRED_BLOCK
                 EdgeLoop_Chroma_vertical(SrcU + (edge << 1), Strength + (edge << 2), Alpha_c, Beta_c, clipTable_c, 12);
                 EdgeLoop_Chroma_vertical(SrcV + (edge << 1), Strength + (edge << 2), Alpha_c, Beta_c, clipTable_c, 12);
 #else
                 EdgeLoop_Chroma_vertical(SrcU + (edge << 1), Strength + (edge << 2), Alpha_c, Beta_c, clipTable_c, pitch >> 1);
                 EdgeLoop_Chroma_vertical(SrcV + (edge << 1), Strength + (edge << 2), Alpha_c, Beta_c, clipTable_c, pitch >> 1);
+#endif
 #endif
             }
         }
@@ -467,12 +506,22 @@ void DeblockMb(AVCCommonObj *video, int mb_x, int mb_y, uint8 *SrcY, uint8 *SrcU
             clipTable = (int *)CLIP_TAB[indexA];
             if (Alpha > 0 && Beta > 0)
             {
+#ifdef H264ENC_MSA
+#ifdef USE_PRED_BLOCK
+                edge_loop_chroma_horizontal_msa(SrcU, SrcV, Strength, Alpha,
+                                                Beta, clipTable, 12);
+#else
+                edge_loop_chroma_horizontal_msa(SrcU, SrcV, Strength, Alpha,
+                                                Beta, clipTable, pitch >> 1);
+#endif
+#else
 #ifdef USE_PRED_BLOCK
                 EdgeLoop_Chroma_horizontal(SrcU, Strength, Alpha, Beta, clipTable, 12);
                 EdgeLoop_Chroma_horizontal(SrcV, Strength, Alpha, Beta, clipTable, 12);
 #else
                 EdgeLoop_Chroma_horizontal(SrcU, Strength, Alpha, Beta, clipTable, pitch >> 1);
                 EdgeLoop_Chroma_horizontal(SrcV, Strength, Alpha, Beta, clipTable, pitch >> 1);
+#endif
 #endif
             }
         }
@@ -507,12 +556,28 @@ void DeblockMb(AVCCommonObj *video, int mb_x, int mb_y, uint8 *SrcY, uint8 *SrcU
 
             if (!(edge & 1) && Alpha_c > 0 && Beta_c > 0)
             {
+#ifdef H264ENC_MSA
+#ifdef USE_PRED_BLOCK
+                edge_loop_chroma_horizontal_msa(SrcU + (edge << 1)*12,
+                                                SrcV + (edge << 1)*12,
+                                                Strength + (edge << 2),
+                                                Alpha_c, Beta_c,
+                                                clipTable_c, 12);
+#else
+                edge_loop_chroma_horizontal_msa(SrcU + (edge << 1)*(pitch >> 1),
+                                                SrcV + (edge << 1)*(pitch >> 1),
+                                                Strength + (edge << 2),
+                                                Alpha_c, Beta_c,
+                                                clipTable_c, pitch >> 1);
+#endif
+#else
 #ifdef USE_PRED_BLOCK
                 EdgeLoop_Chroma_horizontal(SrcU + (edge << 1)*12, Strength + (edge << 2), Alpha_c, Beta_c, clipTable_c, 12);
                 EdgeLoop_Chroma_horizontal(SrcV + (edge << 1)*12, Strength + (edge << 2), Alpha_c, Beta_c, clipTable_c, 12);
 #else
                 EdgeLoop_Chroma_horizontal(SrcU + (edge << 1)*(pitch >> 1), Strength + (edge << 2), Alpha_c, Beta_c, clipTable_c, pitch >> 1);
                 EdgeLoop_Chroma_horizontal(SrcV + (edge << 1)*(pitch >> 1), Strength + (edge << 2), Alpha_c, Beta_c, clipTable_c, pitch >> 1);
+#endif
 #endif
             }
         }
@@ -1084,6 +1149,91 @@ void GetStrength_HorizontalEdges(uint8 Strength[12], AVCMacroblock* MbQ)
  *****************************************************************************************
 */
 
+#ifdef H264ENC_MSA
+void EdgeLoop_Luma_horizontal(uint8 *SrcPtr, uint8 *Strength, int Alpha,
+                              int Beta, int *clipTable, int pitch)
+{
+    if (4 == Strength[0]) /* INTRA strong filtering */
+    {
+        avc_loopfilter_luma_intra_edge_hor_msa(SrcPtr, Alpha, Beta, pitch);
+    }
+    else /* Normal filtering */
+    {
+        avc_loopfilter_luma_inter_edge_hor_msa(SrcPtr,
+                                               Strength[0], Strength[1],
+                                               Strength[2], Strength[3],
+                                               clipTable[Strength[0]],
+                                               clipTable[Strength[1]],
+                                               clipTable[Strength[2]],
+                                               clipTable[Strength[3]],
+                                               Alpha, Beta, pitch);
+    }
+}
+
+void EdgeLoop_Luma_vertical(uint8 *SrcPtr, uint8 *Strength, int Alpha,
+                            int Beta, int *clipTable, int pitch)
+{
+    if (4 == Strength[0]) /* INTRA strong filtering */
+    {
+        avc_loopfilter_luma_intra_edge_ver_msa(SrcPtr, Alpha, Beta, pitch);
+    }
+    else /* Normal filtering */
+    {
+        avc_loopfilter_luma_inter_edge_ver_msa(SrcPtr,
+                                               Strength[0], Strength[1],
+                                               Strength[2], Strength[3],
+                                               clipTable[Strength[0]],
+                                               clipTable[Strength[1]],
+                                               clipTable[Strength[2]],
+                                               clipTable[Strength[3]],
+                                               Alpha, Beta, pitch);
+    }
+}
+
+void edge_loop_chroma_vertical_msa(uint8 *src_cb, uint8 *src_cr,
+                                   uint8 *strength, int alpha, int beta,
+                                   int *clip_table, int pitch)
+{
+    if (4 == strength[0]) /* INTRA strong filtering */
+    {
+        avc_loopfilter_cbcr_intra_edge_ver_msa(src_cb, src_cr,
+                                               alpha, beta, pitch);
+    }
+    else /* normal filtering */
+    {
+        avc_loopfilter_cbcr_inter_edge_ver_msa(src_cb, src_cr,
+                                               strength[0], strength[1],
+                                               strength[2], strength[3],
+                                               clip_table[strength[0]] + 1,
+                                               clip_table[strength[1]] + 1,
+                                               clip_table[strength[2]] + 1,
+                                               clip_table[strength[3]] + 1,
+                                               alpha, beta, pitch);
+    }
+}
+
+void edge_loop_chroma_horizontal_msa(uint8 *src_cb, uint8 *src_cr,
+                                     uint8 *strength, int alpha, int beta,
+                                     int *clip_table, int pitch)
+{
+    if (4 == strength[0]) /* INTRA strong filtering */
+    {
+        avc_loopfilter_cbcr_intra_edge_hor_msa(src_cb, src_cr,
+                                               alpha, beta, pitch);
+    }
+    else /* normal filtering */
+    {
+        avc_loopfilter_cbcr_inter_edge_hor_msa(src_cb, src_cr,
+                                               strength[0], strength[1],
+                                               strength[2], strength[3],
+                                               clip_table[strength[0]] + 1,
+                                               clip_table[strength[1]] + 1,
+                                               clip_table[strength[2]] + 1,
+                                               clip_table[strength[3]] + 1,
+                                               alpha, beta, pitch);
+    }
+}
+#else
 void EdgeLoop_Luma_horizontal(uint8* SrcPtr, uint8 *Strength, int Alpha, int Beta, int *clipTable, int pitch)
 {
     int  pel, ap = 0, aq = 0, Strng;
@@ -1661,7 +1811,7 @@ void EdgeLoop_Chroma_horizontal(uint8* SrcPtr, uint8 *Strength, int Alpha, int B
 
     } /* end of: for(pel=0; pel<16; pel++) */
 }
-
+#endif
 
 
 

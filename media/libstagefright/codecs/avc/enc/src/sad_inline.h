@@ -15,6 +15,10 @@
  * and limitations under the License.
  * -------------------------------------------------------------------
  */
+#ifdef H264ENC_MSA
+#include "prototypes_msa.h"
+#endif
+
 #ifndef _SAD_INLINE_H_
 #define _SAD_INLINE_H_
 
@@ -25,6 +29,7 @@ extern "C"
 
 /* Intentionally not using the gcc asm version, since it is
  * slightly slower than the plain C version on modern GCC versions. */
+#ifndef H264ENC_MSA
 #if !defined(__CC_ARM) /* Generic C version */
 
     __inline int32 SUB_SAD(int32 sad, int32 tmp, int32 tmp2)
@@ -515,7 +520,12 @@ SadMBOffset1:
         return sad_mb_offset1(ref, blk, lx, dmin);
     }
 
-
+#endif
+#else
+    __inline int32 simd_sad_mb(uint8_t *ref, uint8_t *blk, int dmin, int lx)
+    {
+        return sad16x16_msa(ref, lx, blk, 16);
+    }
 #endif
 
 #ifdef __cplusplus

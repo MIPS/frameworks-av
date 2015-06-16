@@ -23,6 +23,10 @@
 
 #define PREF_16_VEC 129     /* 1MV bias versus 4MVs*/
 
+#ifdef H264ENC_MSA
+#include "prototypes_msa.h"
+#endif
+
 const static int distance_tab[9][9] =   /* [hp_guess][k] */
 {
     {0, 1, 1, 1, 1, 1, 1, 1, 1},
@@ -44,6 +48,11 @@ const static int distance_tab[9][9] =   /* [hp_guess][k] */
         else { \
         x = (x>>5)&0xFF0000; \
         }
+
+#ifdef H264ENC_MSA
+    void avc_calc_qpel_data_msa(uint8 **ppu8RefData, uint8 *pu8QpelBuf,
+                                uint8 HpelPos);
+#endif
 
 /*=====================================================================
     Function:   AVCFindHalfPelMB
@@ -109,7 +118,12 @@ int AVCFindHalfPelMB(AVCEncObject *encvid, uint8 *cur, AVCMV *mot, uint8 *ncand,
     encvid->best_hpel_pos = hmin;
 
     /*** search for quarter-pel ****/
+#ifdef H264ENC_MSA
+    avc_calc_qpel_data_msa(encvid->bilin_base[hmin], &(encvid->qpel_cand[0][0]),
+                           (uint8)hmin);
+#else
     GenerateQuartPelPred(encvid->bilin_base[hmin], &(encvid->qpel_cand[0][0]), hmin);
+#endif
 
     encvid->best_qpel_pos = qmin = -1;
 
@@ -150,9 +164,11 @@ void GenerateHalfPelPred(uint8* subpel_pred, uint8 *ncand, int lx)
     uint8 *dst;
     uint8 tmp8;
     int32 tmp32;
+#ifndef H264ENC_MSA
     int16 tmp_horz[18*22], *dst_16, *src_16;
     register int a = 0, b = 0, c = 0, d = 0, e = 0, f = 0; // temp register
     int msk;
+#endif
     int i, j;
 
     /* first copy full-pel to the first array */
@@ -178,6 +194,21 @@ void GenerateHalfPelPred(uint8* subpel_pred, uint8 *ncand, int lx)
         }
         ref += (lx - 24);
     }
+
+#ifdef H264ENC_MSA
+    ref = subpel_pred + 48;
+    dst = subpel_pred + V0Q_H2Q * SUBPEL_PRED_BLK_SIZE; /* go to the 14th array 17x18*/
+    avc_horiz_filter_6taps_17width_msa(ref, 24, dst, 24, 18);
+
+    ref = subpel_pred;
+    dst = subpel_pred + V2Q_H2Q * SUBPEL_PRED_BLK_SIZE; /* 12th array 17x17*/
+    avc_mid_filter_6taps_17width_msa(ref, 24, dst, 24, 17);
+
+    /* do vertical interpolation */
+    ref = subpel_pred + 2;
+    dst = subpel_pred + V2Q_H0Q * SUBPEL_PRED_BLK_SIZE; /* 10th array 18x17 */
+    avc_vert_filter_6taps_18width_msa(ref, 24, dst, 24, 17);
+#else
 
     /* from the first array, we do horizontal interp */
     ref = subpel_pred + 2;
@@ -453,6 +484,7 @@ void GenerateHalfPelPred(uint8* subpel_pred, uint8 *ncand, int lx)
     }
 
     return ;
+#endif
 }
 
 void VertInterpWClip(uint8 *dst, uint8 *ref)
@@ -514,7 +546,7 @@ void VertInterpWClip(uint8 *dst, uint8 *ref)
     return ;
 }
 
-
+#ifndef H264ENC_MSA
 void GenerateQuartPelPred(uint8 **bilin_base, uint8 *qpel_cand, int hpel_pos)
 {
     // for even value of hpel_pos, start with pattern 1, otherwise, start with pattern 2
@@ -602,7 +634,7 @@ void GenerateQuartPelPred(uint8 **bilin_base, uint8 *qpel_cand, int hpel_pos)
 
     return ;
 }
-
+#endif
 
 /* assuming cand always has a pitch of 24 */
 int SATD_MB(uint8 *cand, uint8 *cur, int dmin)

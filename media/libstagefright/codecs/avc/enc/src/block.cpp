@@ -17,6 +17,10 @@
  */
 #include "avcenc_lib.h"
 
+#ifdef H264ENC_MSA
+#include "prototypes_msa.h"
+#endif
+
 /* subtract with the prediction and do transformation */
 void trans(uint8 *cur, int pitch, uint8 *predBlock, int16 *dataBlock)
 {
@@ -72,7 +76,40 @@ void trans(uint8 *cur, int pitch, uint8 *predBlock, int16 *dataBlock)
     return ;
 }
 
+#ifdef H264ENC_MSA
+/* do residue transform quant invquant, invtrans and write output */
+int dct_luma(AVCEncObject *encvid, int blkidx, uint8 *cur, uint8 *org, int *coef_cost)
+{
+    AVCCommonObj *video = encvid->common;
+    int org_pitch = encvid->currInput->pitch;
+    int pitch = video->currPic->pitch;
+    int16 *coef = video->block;
+    uint8 *pred = video->pred_block; // size 16 for a 4x4 block
+    int pred_pitch = video->pred_pitch;
+    int *level, *run;
+    int Qq, Rq, qp_const;
+    int numcoeff;
 
+    /* point to the 4x4 block */
+    coef += ((blkidx & 0x3) << 2) + ((blkidx >> 2) << 6);
+
+    /* quant */
+    level = encvid->level[ras2dec[blkidx]];
+    run = encvid->run[ras2dec[blkidx]];
+
+    Rq = video->QPy_mod_6;
+    Qq = video->QPy_div_6;
+
+    qp_const = encvid->qp_const;
+
+    numcoeff = avc_transform_4x4_msa(org, org_pitch, pred, pred_pitch,
+                                     cur, pitch, coef, 16, coef_cost, level,
+                                     run, video->currMB->mb_intra,
+                                     Rq, Qq, qp_const);
+
+    return numcoeff;
+}
+#else
 /* do residue transform quant invquant, invtrans and write output out */
 int dct_luma(AVCEncObject *encvid, int blkidx, uint8 *cur, uint8 *org, int *coef_cost)
 {
@@ -255,8 +292,18 @@ int dct_luma(AVCEncObject *encvid, int blkidx, uint8 *cur, uint8 *org, int *coef
 
     return numcoeff;
 }
+#endif
 
 
+#ifdef H264ENC_MSA
+void MBInterIdct(AVCCommonObj *video, uint8 *curL, AVCMacroblock *currMB, int picPitch)
+{
+    avc_mb_inter_idct_16x16_msa(curL, picPitch, video->block, 16,
+                                currMB->nz_coeff, currMB->CBP);
+
+    return;
+}
+#else
 void MBInterIdct(AVCCommonObj *video, uint8 *curL, AVCMacroblock *currMB, int picPitch)
 {
     int16 *coef, *coef8 = video->block;
@@ -355,7 +402,35 @@ void MBInterIdct(AVCCommonObj *video, uint8 *curL, AVCMacroblock *currMB, int pi
 
     return ;
 }
+#endif
 
+
+#ifdef H264ENC_MSA
+/* performa dct, quant, iquant, idct for the entire MB */
+void dct_luma_16x16(AVCEncObject *encvid, uint8 *curL, uint8 *orgL)
+{
+    AVCCommonObj *video = encvid->common;
+    int pitch = video->currPic->pitch;
+    int org_pitch = encvid->currInput->pitch;
+    AVCMacroblock *currMB = video->currMB;
+    int16 *coef = video->block;
+    uint8 *pred = encvid->pred_i16[currMB->i16Mode];
+    int Rq, Qq, qp_const;
+
+    Rq = video->QPy_mod_6;
+    Qq = video->QPy_div_6;
+    qp_const = encvid->qp_const;
+
+    avc_luma_transform_16x16_msa(orgL, org_pitch, pred, 16,
+                                 curL, pitch, coef, 16,
+                                 encvid->leveldc, encvid->rundc,
+                                 encvid->level[0], encvid->run[0],
+                                 currMB->nz_coeff, &currMB->CBP,
+                                 Rq, Qq, qp_const, &encvid->numcoefdc);
+
+    return ;
+}
+#else
 /* performa dct, quant, iquant, idct for the entire MB */
 void dct_luma_16x16(AVCEncObject *encvid, uint8 *curL, uint8 *orgL)
 {
@@ -717,8 +792,49 @@ void dct_luma_16x16(AVCEncObject *encvid, uint8 *curL, uint8 *orgL)
 
     return ;
 }
+#endif
 
 
+#ifdef H264ENC_MSA
+void dct_chroma(AVCEncObject *encvid, uint8 *curC, uint8 *orgC, int cr)
+{
+    AVCCommonObj *video = encvid->common;
+    AVCMacroblock *currMB = video->currMB;
+    int org_pitch = (encvid->currInput->pitch) >> 1;
+    int pitch = (video->currPic->pitch) >> 1;
+    int pred_pitch = 16;
+    int16 *coef = video->block + 256;
+    uint8 *pred = video->pred_block;
+    int Qq, Rq, qp_const;
+    int *level, *run;
+    int coeff_cost;
+
+    Qq = video->QPc_div_6;
+    Rq = video->QPc_mod_6;
+    qp_const = encvid->qp_const_c;
+
+    if (cr)
+    {
+        run = encvid->run[20];
+        level = encvid->level[20];
+    }
+    else
+    {
+        run = encvid->run[16];
+        level = encvid->level[16];
+    }
+
+    avc_chroma_transform_8x8_msa(orgC, org_pitch, pred, pred_pitch,
+                                 curC, pitch, coef, 16,
+                                 &coeff_cost, encvid->levelcdc, encvid->runcdc,
+                                 level, run, currMB->mb_intra,
+                                 encvid->numcoefcdc,
+                                 currMB->nz_coeff, &currMB->CBP,
+                                 cr, Rq, Qq, qp_const);
+
+    return ;
+}
+#else
 void dct_chroma(AVCEncObject *encvid, uint8 *curC, uint8 *orgC, int cr)
 {
     AVCCommonObj *video = encvid->common;
@@ -1108,7 +1224,7 @@ void dct_chroma(AVCEncObject *encvid, uint8 *curC, uint8 *orgC, int cr)
 
     return ;
 }
-
+#endif
 
 /* only DC transform */
 int TransQuantIntra16DC(AVCEncObject *encvid)
