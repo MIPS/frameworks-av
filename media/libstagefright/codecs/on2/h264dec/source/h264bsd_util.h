@@ -67,7 +67,11 @@
 /* value to be returned by GetBits if stream buffer is empty */
 #define END_OF_STREAM 0xFFFFFFFFU
 
+#ifdef H264DEC_MSA
+#define EMPTY_RESIDUAL_INDICATOR 0x7FFF
+#else
 #define EMPTY_RESIDUAL_INDICATOR 0xFFFFFF
+#endif
 
 /* macro to mark a residual block empty, i.e. contain zero coefficients */
 #define MARK_RESIDUAL_EMPTY(residual) ((residual)[0] = EMPTY_RESIDUAL_INDICATOR)

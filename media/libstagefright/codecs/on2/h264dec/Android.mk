@@ -97,6 +97,22 @@ ifeq ($(TARGET_ARCH),arm)
   endif
 endif
 
+ifeq ($(TARGET_ARCH),$(filter $(TARGET_ARCH),mips32 mips64))
+    ifeq ($(ARCH_MIPS_HAVE_MSA),true)
+        LOCAL_CFLAGS += -DH264DEC_MSA
+        LOCAL_CFLAGS +=  -mmsa -msched-weight -funroll-loops
+
+        LOCAL_SRC_FILES += ./source/mips/msa/h264bsd_transform_msa.c \
+                           ./source/mips/msa/h264bsd_intra_predict_msa.c \
+                           ./source/mips/msa/h264bsd_mc_filter_msa.c \
+                           ./source/mips/msa/h264bsd_deblocking_msa.c \
+                           ./source/mips/msa/h264bsd_image_msa.c
+
+        LOCAL_C_INCLUDES += $(LOCAL_PATH)/./source/
+        LOCAL_C_INCLUDES += $(LOCAL_PATH)/./source/mips/msa/
+    endif
+endif
+
 LOCAL_SHARED_LIBRARIES := \
 	libstagefright libstagefright_omx libstagefright_foundation libutils liblog \
 

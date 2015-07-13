@@ -106,6 +106,7 @@ extern const u8 h264bsdClip[];
           predPartChroma    pointer where predicted part is written
 
 ------------------------------------------------------------------------------*/
+#ifndef H264DEC_MSA
 #ifndef H264DEC_ARM11
 void h264bsdInterpolateChromaHor(
   u8 *pRef,
@@ -402,7 +403,7 @@ void h264bsdInterpolateChromaHorVer(
     }
 
 }
-
+#endif
 /*------------------------------------------------------------------------------
 
     Function: PredictChroma
@@ -487,6 +488,7 @@ static void PredictChroma(
           is written to macroblock array (mb)
 
 ------------------------------------------------------------------------------*/
+#ifndef H264DEC_MSA
 #ifndef H264DEC_ARM11
 void h264bsdInterpolateVerHalf(
   u8 *ref,
@@ -988,6 +990,8 @@ void h264bsdInterpolateHorQuarter(
     }
 
 }
+#endif
+#endif
 
 /*------------------------------------------------------------------------------
 
@@ -1193,8 +1197,8 @@ void h264bsdInterpolateHorVerQuarter(
     }
 
 }
-#endif
 
+#ifndef H264DEC_MSA
 /*------------------------------------------------------------------------------
 
     Function: h264bsdInterpolateMidHalf
@@ -1789,7 +1793,7 @@ void h264bsdInterpolateMidHorQuarter(
     }
 
 }
-
+#endif
 
 /*------------------------------------------------------------------------------
 

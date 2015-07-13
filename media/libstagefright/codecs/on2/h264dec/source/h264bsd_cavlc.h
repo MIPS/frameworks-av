@@ -50,7 +50,11 @@
 
 u32 h264bsdDecodeResidualBlockCavlc(
   strmData_t *pStrmData,
+#ifdef H264DEC_MSA
+  i16 *coeffLevel,
+#else
   i32 *coeffLevel,
+#endif
   i32 nc,
   u32 maxNumCoeff);
 
